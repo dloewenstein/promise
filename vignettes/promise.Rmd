@@ -1,18 +1,18 @@
 ---
-title: "Prevalence of heart failure and medical comorbidities in different electrocardiographic intraventricular conduction abnormalities compared to normal conduction"
-author: "Daniel Loewenstein"
-date: "`r Sys.Date()`"
+title: Prevalence of heart failure and medical comorbidities in different electrocardiographic
+  intraventricular conduction abnormalities compared to normal conduction
+author: Daniel Loewenstein
+date: '`r Sys.Date()`'
 slug: promise
 show_toc: yes
 output:
-  knitr:::html_vignette:
+  knitr:::html_vignette: ~
   number_sections: yes
 vignette: >
   %\VignetteIndexEntry{Reading xml ECG and processing diagnosis}
   %\VignetteEngine{knitr::rmarkdown_notangle}
   %\VignetteEncoding{UTF-8}
 ---
-
 
 ## Setup
 
@@ -37,7 +37,7 @@ ecg <- readRDS(file.path(DataPackageR::project_path(), "data-raw/promise_xml_ecg
 This is used for setting up a relative path during the package build.
 
 ```{r}
-data_dir <- DataPackageR::project_extdata_path()
+data_dir <- "/mnt/c/Users/Daniel/Cloudstation/Documents/Research/Projects/POHMECG/data/"
 ```
 
 ## Echo data
