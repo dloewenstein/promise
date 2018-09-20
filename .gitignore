@@ -2,3 +2,5 @@
 .Rhistory
 .Rdata
 inst/extdata/
+*.rds
+*.rda

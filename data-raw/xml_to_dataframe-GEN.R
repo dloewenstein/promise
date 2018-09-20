@@ -1,3 +1,4 @@
+## ---- xml_to_dataframe
 
 #' Read xml ecg to dataframe
 #'
@@ -8,8 +9,13 @@
 #'
 #' @examples
 
-xmlToDataframe <- function(filepath) {
+xmlToDataframe <- function(filepath, use_progress=TRUE) {
 
+# Update progress
+if (use_progress) {
+pb$tick()
+}
+    
 # Read the xml document.
 
 xml <- xml2::read_xml(filepath)
@@ -31,7 +37,8 @@ ecg_date <- xml %>%
 ECGDate <- as.POSIXct(paste(ecg_date,
                             ecg_time,
                             sep = " "),
-                      format = "%m-%d-%Y %H:%M:%S")
+                      format = "%m-%d-%Y %H:%M:%S",
+                      tz = "America/New_York")
 
 demographics <- xml %>%
   xml2::xml_find_all("/RestingECG/PatientDemographics") %>%
@@ -119,6 +126,9 @@ xml_files <- list.files(file.path(data_dir, "Muse_xml/"), full.names = TRUE)
 
 # Apply xmlToDataframe function to all xml files.
 
+pb <- progress::progress_bar$new(total = length(xml_files))
+
+pb$tick(0)
 ecg <- map(xml_files, xmlToDataframe)
 
 # Combine the dataframes in the list to a data.table, fill to replace empty/
@@ -206,4 +216,6 @@ ecg[, `:=` (diagnosis          = NULL,
             original_diagnosis = NULL)]
 
 ecg <- ecg[!is.na(QRSDur)]
+
+saveRDS(ecg, file.path(DataPackageR::project_path(), "data-raw/promise_xml_ecg-GEN.rds"))
 

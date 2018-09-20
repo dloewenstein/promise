@@ -1,1 +1,3 @@
 ^\./inst/extdata$
+^README\.Rmd$
+^README-.*\.png$

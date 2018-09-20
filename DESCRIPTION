@@ -2,13 +2,19 @@ Package: promise
 Title: What the Package Does (One Line, Title Case)
 Version: 1.0
 Authors@R: 
-    person(given = "First",
-           family = "Last",
+    person(given = "Daniel",
+           family = "Loewenstein",
            role = c("aut", "cre"),
-           email = "first.last@example.com")
+           email = "loewenstein.daniel@gmail.com")
 Description: What the package does (one paragraph).
 License: What license it uses
 Encoding: UTF-8
 LazyData: true
 DataVersion: 0.1.0
 Roxygen: list(markdown = TRUE)
+Date: 2018-09-20
+Suggests: 
+    knitr,
+    rmarkdown
+VignetteBuilder: knitr
+RoxygenNote: 6.0.1

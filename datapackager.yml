@@ -1,5 +1,7 @@
 configuration:
   files:
+    xml_to_dataframe-GEN.R:
+      enabled: no
     promise.Rmd:
       enabled: yes
   objects:
