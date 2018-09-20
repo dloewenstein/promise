@@ -5,15 +5,18 @@ date: "`r Sys.Date()`"
 slug: promise
 show_toc: yes
 output:
-    knitr:::html_vignette:
-    number_sections: yes
+  knitr:::html_vignette:
+  number_sections: yes
 vignette: >
-    %\VignetteIndexEntry{Prevalence of heart failure and medical comorbidities in different electrocardiographic intraventricular conduction abnormalities compared to normal conduction}
-    %\VignetteEngine{knitr::rmarkdown_notangle}
-    %\VignetteEncoding{UTF-8}
+  %\VignetteIndexEntry{Reading xml ECG and processing diagnosis}
+  %\VignetteEngine{knitr::rmarkdown_notangle}
+  %\VignetteEncoding{UTF-8}
 ---
 
 
+## Setup
+
+First we load all the needed packages.
 
 ```{r}
 library(dplyr)
@@ -25,26 +28,33 @@ library(purrr)
 library(data.table)
 ```
 
-# Importing ECGs
+All the .xml ECG files have already been processed. You can read about the process [here](LP-xml_to_dataframe.html)
 
 ```{r}
 ecg <- readRDS(file.path(DataPackageR::project_path(), "data-raw/promise_xml_ecg-GEN.rds"))
 ```
 
+This is used for setting up a relative path during the package build.
 
 ```{r}
 data_dir <- DataPackageR::project_extdata_path()
 ```
 
+## Echo data
 
-reading in echo data.
-```{r, echo}
+Time to read in all the echo data.
+
+```{r, echo_data}
 #Reads echo data
 echo <- read.csv(file.path(data_dir, "all_echoes.csv"), 
                  stringsAsFactors = FALSE,
                 na.strings=c(""," ","  ", "NA", "N/A"),
                 strip.white = TRUE)
+```
 
+Since all the data are exported from the Deduce database, Duke University Medical Center, Durham, NC, USA we noticed that it's important to set the timezone (tz) explicitly, since some processing afterwards have been done outside NC and the default R settings is to use the local timezone.
+
+```{r}
 #Renames Echo.MRN to MRN
 echo <- echo %>%
         rename(MRN = log_history, 
@@ -76,7 +86,9 @@ echo <- echo %>%
 
 ```
 
-# Matching of ECG and ECHO
+## ECG and ECHO matching
+
+We start by joining all patients by their Medical Record Number (MRN). We filter for all observations with less than or equal to 30 days, between the date of the echo and the date of the ecg. Among these we filter for the ones closest in time.
 
 ```{r, df}
 #Joins echo and ecg by MRN variable
@@ -122,10 +134,13 @@ gotten a new MRN. mrn.df contains a list of the old MRNs matched to the new ones
 However, 135 of the old MRNs exist in the supposedly new MRNs which we think are
 due to that they had an ecg and echo exam both for the old MRN and the new MRN,
 resulting in duplicates after the old MRN gets updated to the new MRN in our dataset.
+
 Our solution to this is:
+
 - identify which MRNs exist both as old and new, exclude these
 - update the remaining old MRNs with the new numbers for further patient data mathing
-which uses the updated MRNs
+which uses the updated MRNs.
+
 ```{r}
 #Reads in updated MRN data
 mrn.df <- read.csv(file.path(data_dir, "changedMrns.csv"), 
@@ -139,6 +154,7 @@ colnames(mrn.df) <- c("MRN", "new.MRN")
 
 There were duplicates of the new MRN were different old MRNs had been assigned
 the same new MRN, all of these are removed below.
+
 ```{r}
 #selects all rows in mrn.df were new.MRN is not one of the new.MRNs that
 #are duplicated.
@@ -160,7 +176,10 @@ df <- df %>%
         select(- new.MRN)
 ```
 
+## Demographics 
+
 Reading in demographics datas regarding DOB, gender, race and date of death
+
 ```{r}
 demo.df <- read.csv(file.path(data_dir, "DOB_GENDER_Race_DOD.csv"),
                     stringsAsFactors = FALSE,
@@ -169,7 +188,8 @@ demo.df <- read.csv(file.path(data_dir, "DOB_GENDER_Race_DOD.csv"),
 
 ```
 
-Renaming column variables, setting date columns in postixct format, converting ordinal variables to factors.
+Renaming column variables, setting date columns in POSIXct format, (POSIXlt uses a list format, while ct uses time in seconds from the origin, which is more memory effective), converting ordinal variables to factors.
+
 ```{r}
 demo.df <- demo.df %>%
         transmute(MRN = Duke.MRN, 
@@ -184,7 +204,8 @@ demo.df <- demo.df %>%
 ```
 
 
-Renaming factor levels
+Let's clean up the Race factor levels a bit.
+
 ```{r}
 levels(demo.df$Race) <- list("Mix"              = c("2 OR MORE RACES", 
                                                     "MULTIRACIAL"),
@@ -202,8 +223,10 @@ levels(demo.df$Race) <- list("Mix"              = c("2 OR MORE RACES",
                              "Other"            = "OTHER")
 ```
 
-#Matching of demographic data to unique MRNs in the ECG - Echo matched dataset
+## Matching demographics
+
 This way of merging returns all rows from df where there are matching values in demo.df, and all columns from df and demo.df. If there are multiple matches between df and demo.df, all combination of the matches are returned.
+
 ```{r}
 main.df <- inner_join(df, demo.df, by = "MRN") %>%
         
@@ -214,7 +237,8 @@ main.df <- inner_join(df, demo.df, by = "MRN") %>%
         
 ```
 
-Reads in CRT data
+Read in the Cardiac Resynchronization Therapy (CRT) data.
+
 ```{r}
 crt.df <- read.csv(file.path(data_dir, "Dx/CRT Codes.csv"), 
                    stringsAsFactors = FALSE,
@@ -233,7 +257,8 @@ crt.df <- crt.df %>%
         ungroup()
 ```
 
-Reads in LVAD data
+Read in LVAD data
+
 ```{r}
 lvad.df <- read.csv(file.path(data_dir, "Dx/LVAD Codes.csv"),
                     stringsAsFactors = FALSE,
@@ -253,7 +278,8 @@ lvad.df <- lvad.df %>%
 ```
 
 
-Reads in Heart transplant data
+Read in Heart transplant data
+
 ```{r}
 htx.df <- read.csv(file.path(data_dir, "Dx/Hearttransplant Codes.csv"),
                     stringsAsFactors = FALSE,
@@ -274,7 +300,8 @@ htx.df <- htx.df %>%
 ```
 
 
-Reading in heart failure data.
+Read in heart failure data.
+
 ```{r}
 #Read heart failure data
 hf.df <- read.csv(file.path(data_dir, "Dx/HF DX.csv"), 
@@ -290,7 +317,8 @@ hf.df <- hf.df %>%
 
 ```
 
-Reading in cad data.
+Read in cad data.
+
 ```{r}
 
 #Read CAD data
@@ -306,7 +334,8 @@ cad.df <- cad.df %>%
         mutate(CAD.Date = as.POSIXct(CAD.Date, format = "%m/%d/%Y %H:%M:%S", tz = "America/New_York"))
 ```
 
-Reading in OSA data
+Read in OSA data.
+
 ```{r}
 osa.df <- read.csv(file.path(data_dir, "Dx/OSA DX.csv"), 
                    stringsAsFactors = FALSE,
@@ -319,7 +348,8 @@ osa.df <- osa.df %>%
         mutate(OSA.Date = as.POSIXct(OSA.Date, format = "%m/%d/%Y %H:%M:%S", tz = "America/New_York"))
 ```
 
-Reading in CHD data
+Read in CHD data.
+
 ```{r}
 chd.df <- read.csv(file.path(data_dir, "Dx/CHD DX.csv"), 
                    stringsAsFactors = FALSE,
@@ -332,7 +362,8 @@ chd.df <- chd.df %>%
         mutate(CHD.Date = as.POSIXct(CHD.Date, format = "%m/%d/%Y %H:%M:%S", tz = "America/New_York"))
 ```
 
-Reading in COPD data
+Read in COPD data.
+
 ```{r}
 copd.df <- read.csv(file.path(data_dir, "Dx/COPD DX.csv"), 
                    stringsAsFactors = FALSE,
@@ -345,7 +376,8 @@ copd.df <- copd.df %>%
         mutate(COPD.Date = as.POSIXct(COPD.Date, format = "%m/%d/%Y %H:%M:%S", tz = "America/New_York"))
 ```
 
-Reading in DM data
+Read in DM data.
+
 ```{r}
 dm.df <- read.csv(file.path(data_dir, "Dx/DM DX.csv"), 
                    stringsAsFactors = FALSE,
@@ -358,7 +390,8 @@ dm.df <- dm.df %>%
         mutate(DM.Date = as.POSIXct(DM.Date, format = "%m/%d/%Y %H:%M:%S", tz = "America/New_York"))
 ```
 
-Reading in HTN data
+Read in HTN data.
+
 ```{r}
 htn.df <- read.csv(file.path(data_dir, "Dx/HTN DX.csv"), 
                    stringsAsFactors = FALSE,
@@ -372,6 +405,7 @@ htn.df <- htn.df %>%
 ```
 
 Reading in AF data
+
 ```{r}
 af.df <- read.csv(file.path(data_dir, "Dx/AF DX.csv"), 
                    stringsAsFactors = FALSE,
@@ -387,12 +421,14 @@ af.df <- af.df %>%
 
 Creating new dataframe containing just the MRNs and the corresponding ECGdates
 so that this can be used in the dx.match function to match diagnosis date to ecg date.
+
 ```{r}
 ecgdates.df <- main.df %>%
         select(MRN, ECGDate)
 ```
 
 Function to select diagnosis meeting match criteria, the first date that is not more than >30 days after ECG date.
+
 ```{r}
 dx.match.fun <- function(x, diagnosis) { 
   
@@ -451,9 +487,8 @@ osa.df <- dx.match.fun(osa.df, "OSA")
 
 ```
 
-
-
 Joining diagnosis data to main.df
+
 ```{r}
 
 main.df2 <- left_join(main.df, af.df, by = "MRN") %>%
@@ -768,6 +803,8 @@ main.df3 <- left_join(main.df2, classIII.df, by = "MRN") %>%
 
 ```
 
+## Lab data
+
 ```{r}
 read.lab.data <- function(filepath, lab) {
         
@@ -951,16 +988,17 @@ main.df4 <- left_join(main.df3, na.df, by = "MRN") %>%
         left_join(gfr.df, by = "MRN")
 ```
 
-# Cleaning
+## Data processing
 
 ```{r}
 #drops unused factor levels
 main.df5 <- droplevels(main.df4)
 ```
 
-##Exclusion criteria
-* Patients under 18 years of age
-* QRSduration <60ms
+### Exclusion criteria
+
+- Patients under 18 years of age
+- QRSduration <60ms
 
 ```{r}
 

@@ -74,6 +74,9 @@ code > span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Inf
 
 
 
+<div id="setup" class="section level2">
+<h2>Setup</h2>
+<p>First we load all the needed packages.</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">library</span>(dplyr)
 <span class="kw">library</span>(readr)
 <span class="kw">library</span>(lazyeval)
@@ -81,18 +84,21 @@ code > span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Inf
 <span class="kw">library</span>(xml2)
 <span class="kw">library</span>(purrr)
 <span class="kw">library</span>(data.table)</code></pre></div>
-<div id="importing-ecgs" class="section level1">
-<h1>Importing ECGs</h1>
+<p>All the .xml ECG files have already been processed. You can read about the process <a href="LP-xml_to_dataframe.html">here</a></p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">ecg &lt;-<span class="st"> </span><span class="kw">readRDS</span>(<span class="kw">file.path</span>(DataPackageR<span class="op">::</span><span class="kw">project_path</span>(), <span class="st">&quot;data-raw/promise_xml_ecg-GEN.rds&quot;</span>))</code></pre></div>
+<p>This is used for setting up a relative path during the package build.</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">data_dir &lt;-<span class="st"> </span>DataPackageR<span class="op">::</span><span class="kw">project_extdata_path</span>()</code></pre></div>
-<p>reading in echo data.</p>
+</div>
+<div id="echo-data" class="section level2">
+<h2>Echo data</h2>
+<p>Time to read in all the echo data.</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co">#Reads echo data</span>
 echo &lt;-<span class="st"> </span><span class="kw">read.csv</span>(<span class="kw">file.path</span>(data_dir, <span class="st">&quot;all_echoes.csv&quot;</span>), 
                  <span class="dt">stringsAsFactors =</span> <span class="ot">FALSE</span>,
                 <span class="dt">na.strings=</span><span class="kw">c</span>(<span class="st">&quot;&quot;</span>,<span class="st">&quot; &quot;</span>,<span class="st">&quot;  &quot;</span>, <span class="st">&quot;NA&quot;</span>, <span class="st">&quot;N/A&quot;</span>),
-                <span class="dt">strip.white =</span> <span class="ot">TRUE</span>)
-
-<span class="co">#Renames Echo.MRN to MRN</span>
+                <span class="dt">strip.white =</span> <span class="ot">TRUE</span>)</code></pre></div>
+<p>Since all the data are exported from the Deduce database, Duke University Medical Center, Durham, NC, USA we noticed that it’s important to set the timezone (tz) explicitly, since some processing afterwards have been done outside NC and the default R settings is to use the local timezone.</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co">#Renames Echo.MRN to MRN</span>
 echo &lt;-<span class="st"> </span>echo <span class="op">%&gt;%</span>
 <span class="st">        </span><span class="kw">rename</span>(<span class="dt">MRN =</span> log_history, 
                <span class="dt">EF =</span> acq_efclosest,
@@ -119,8 +125,9 @@ echo &lt;-<span class="st"> </span>echo <span class="op">%&gt;%</span>
 <span class="st">        </span>
 <span class="st">        </span><span class="kw">select</span>(MRN, Echo.date, EF, EF.x, AS.severity, MS.severity, AR.severity, MR.severity, PAP.mm.hg, echo_indication)</code></pre></div>
 </div>
-<div id="matching-of-ecg-and-echo" class="section level1">
-<h1>Matching of ECG and ECHO</h1>
+<div id="ecg-and-echo-matching" class="section level2">
+<h2>ECG and ECHO matching</h2>
+<p>We start by joining all patients by their Medical Record Number (MRN). We filter for all observations with less than or equal to 30 days, between the date of the echo and the date of the ecg. Among these we filter for the ones closest in time.</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co">#Joins echo and ecg by MRN variable</span>
 df &lt;-<span class="st"> </span><span class="kw">inner_join</span>(echo, ecg, <span class="dt">by =</span> <span class="st">&quot;MRN&quot;</span>)
 
@@ -157,7 +164,12 @@ df &lt;-<span class="st"> </span>df <span class="op">%&gt;%</span>
 <span class="st">        </span>
 <span class="st">        </span><span class="co">#drops the added column with number of na's</span>
 <span class="st">        </span><span class="kw">select</span>(<span class="op">-</span>n)</code></pre></div>
-<p>Some patients when performing match in Duke DEDUCE database were flagged as having gotten a new MRN. mrn.df contains a list of the old MRNs matched to the new ones. However, 135 of the old MRNs exist in the supposedly new MRNs which we think are due to that they had an ecg and echo exam both for the old MRN and the new MRN, resulting in duplicates after the old MRN gets updated to the new MRN in our dataset. Our solution to this is: - identify which MRNs exist both as old and new, exclude these - update the remaining old MRNs with the new numbers for further patient data mathing which uses the updated MRNs</p>
+<p>Some patients when performing match in Duke DEDUCE database were flagged as having gotten a new MRN. mrn.df contains a list of the old MRNs matched to the new ones. However, 135 of the old MRNs exist in the supposedly new MRNs which we think are due to that they had an ecg and echo exam both for the old MRN and the new MRN, resulting in duplicates after the old MRN gets updated to the new MRN in our dataset.</p>
+<p>Our solution to this is:</p>
+<ul>
+<li>identify which MRNs exist both as old and new, exclude these</li>
+<li>update the remaining old MRNs with the new numbers for further patient data mathing which uses the updated MRNs.</li>
+</ul>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co">#Reads in updated MRN data</span>
 mrn.df &lt;-<span class="st"> </span><span class="kw">read.csv</span>(<span class="kw">file.path</span>(data_dir, <span class="st">&quot;changedMrns.csv&quot;</span>), 
                    <span class="dt">stringsAsFactors =</span> <span class="ot">FALSE</span>,
@@ -184,12 +196,15 @@ df &lt;-<span class="st"> </span><span class="kw">left_join</span>(df, mrn.df, <
 df &lt;-<span class="st"> </span>df <span class="op">%&gt;%</span>
 <span class="st">        </span><span class="kw">mutate</span>(<span class="dt">MRN =</span> <span class="kw">if_else</span>(<span class="op">!</span><span class="kw">is.na</span>(new.MRN), new.MRN, MRN)) <span class="op">%&gt;%</span>
 <span class="st">        </span><span class="kw">select</span>(<span class="op">-</span><span class="st"> </span>new.MRN)</code></pre></div>
+</div>
+<div id="demographics" class="section level2">
+<h2>Demographics</h2>
 <p>Reading in demographics datas regarding DOB, gender, race and date of death</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">demo.df &lt;-<span class="st"> </span><span class="kw">read.csv</span>(<span class="kw">file.path</span>(data_dir, <span class="st">&quot;DOB_GENDER_Race_DOD.csv&quot;</span>),
                     <span class="dt">stringsAsFactors =</span> <span class="ot">FALSE</span>,
                     <span class="dt">na.strings=</span><span class="kw">c</span>(<span class="st">&quot;&quot;</span>,<span class="st">&quot; &quot;</span>,<span class="st">&quot;  &quot;</span>, <span class="st">&quot;NA&quot;</span>, <span class="st">&quot;N/A&quot;</span>),
                     <span class="dt">strip.white =</span> <span class="ot">TRUE</span>)</code></pre></div>
-<p>Renaming column variables, setting date columns in postixct format, converting ordinal variables to factors.</p>
+<p>Renaming column variables, setting date columns in POSIXct format, (POSIXlt uses a list format, while ct uses time in seconds from the origin, which is more memory effective), converting ordinal variables to factors.</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">demo.df &lt;-<span class="st"> </span>demo.df <span class="op">%&gt;%</span>
 <span class="st">        </span><span class="kw">transmute</span>(<span class="dt">MRN =</span> Duke.MRN, 
                <span class="dt">Gender =</span> <span class="kw">as.factor</span>(Patient.Gender), 
@@ -200,7 +215,7 @@ df &lt;-<span class="st"> </span>df <span class="op">%&gt;%</span>
                <span class="dt">Death.index =</span> <span class="kw">as.factor</span>(Patient.Death.Indicator),
                <span class="dt">DOD =</span> <span class="kw">as.POSIXct</span>(Patient.Death.Date, 
                                 <span class="dt">format =</span> <span class="st">&quot;%m/%d/%Y %H:%M:%S&quot;</span>, <span class="dt">tz =</span> <span class="st">&quot;America/New_York&quot;</span>))</code></pre></div>
-<p>Renaming factor levels</p>
+<p>Let’s clean up the Race factor levels a bit.</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">levels</span>(demo.df<span class="op">$</span>Race) &lt;-<span class="st"> </span><span class="kw">list</span>(<span class="st">&quot;Mix&quot;</span>              =<span class="st"> </span><span class="kw">c</span>(<span class="st">&quot;2 OR MORE RACES&quot;</span>, 
                                                     <span class="st">&quot;MULTIRACIAL&quot;</span>),
                              <span class="st">&quot;American.native&quot;</span>  =<span class="st"> </span><span class="kw">c</span>(<span class="st">&quot;ALASKAN NATIVE&quot;</span>,
@@ -216,8 +231,8 @@ df &lt;-<span class="st"> </span>df <span class="op">%&gt;%</span>
                              <span class="st">&quot;Asian&quot;</span>            =<span class="st"> &quot;ASIAN&quot;</span>,
                              <span class="st">&quot;Other&quot;</span>            =<span class="st"> &quot;OTHER&quot;</span>)</code></pre></div>
 </div>
-<div id="matching-of-demographic-data-to-unique-mrns-in-the-ecg---echo-matched-dataset" class="section level1">
-<h1>Matching of demographic data to unique MRNs in the ECG - Echo matched dataset</h1>
+<div id="matching-demographics" class="section level2">
+<h2>Matching demographics</h2>
 <p>This way of merging returns all rows from df where there are matching values in demo.df, and all columns from df and demo.df. If there are multiple matches between df and demo.df, all combination of the matches are returned.</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">main.df &lt;-<span class="st"> </span><span class="kw">inner_join</span>(df, demo.df, <span class="dt">by =</span> <span class="st">&quot;MRN&quot;</span>) <span class="op">%&gt;%</span>
 <span class="st">        </span>
@@ -225,7 +240,7 @@ df &lt;-<span class="st"> </span>df <span class="op">%&gt;%</span>
 <span class="st">        </span><span class="kw">mutate</span>(<span class="dt">Age.at.ECG =</span> <span class="kw">round</span>(<span class="kw">as.integer</span>(<span class="kw">difftime</span>(ECGDate, 
                                                       DOB, 
                                                       <span class="dt">units =</span> <span class="st">&quot;days&quot;</span>))<span class="op">/</span><span class="fl">365.25</span>))</code></pre></div>
-<p>Reads in CRT data</p>
+<p>Read in the Cardiac Resynchronization Therapy (CRT) data.</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">crt.df &lt;-<span class="st"> </span><span class="kw">read.csv</span>(<span class="kw">file.path</span>(data_dir, <span class="st">&quot;Dx/CRT Codes.csv&quot;</span>), 
                    <span class="dt">stringsAsFactors =</span> <span class="ot">FALSE</span>,
                    <span class="dt">na.strings=</span><span class="kw">c</span>(<span class="st">&quot;&quot;</span>,<span class="st">&quot; &quot;</span>,<span class="st">&quot;  &quot;</span>, <span class="st">&quot;NA&quot;</span>, <span class="st">&quot;N/A&quot;</span>))
@@ -241,7 +256,7 @@ crt.df &lt;-<span class="st"> </span>crt.df <span class="op">%&gt;%</span>
 <span class="st">        </span><span class="kw">filter</span>(CRT.Date <span class="op">==</span><span class="st"> </span><span class="kw">min</span>(CRT.Date)) <span class="op">%&gt;%</span>
 <span class="st">        </span><span class="kw">slice</span>(<span class="dv">1</span>) <span class="op">%&gt;%</span>
 <span class="st">        </span><span class="kw">ungroup</span>()</code></pre></div>
-<p>Reads in LVAD data</p>
+<p>Read in LVAD data</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">lvad.df &lt;-<span class="st"> </span><span class="kw">read.csv</span>(<span class="kw">file.path</span>(data_dir, <span class="st">&quot;Dx/LVAD Codes.csv&quot;</span>),
                     <span class="dt">stringsAsFactors =</span> <span class="ot">FALSE</span>,
                     <span class="dt">na.strings=</span><span class="kw">c</span>(<span class="st">&quot;&quot;</span>,<span class="st">&quot; &quot;</span>,<span class="st">&quot;  &quot;</span>, <span class="st">&quot;NA&quot;</span>, <span class="st">&quot;N/A&quot;</span>))
@@ -257,7 +272,7 @@ lvad.df &lt;-<span class="st"> </span>lvad.df <span class="op">%&gt;%</span>
 <span class="st">        </span><span class="kw">filter</span>(LVAD.Date <span class="op">==</span><span class="st"> </span><span class="kw">min</span>(LVAD.Date)) <span class="op">%&gt;%</span>
 <span class="st">        </span><span class="kw">slice</span>(<span class="dv">1</span>) <span class="op">%&gt;%</span>
 <span class="st">        </span><span class="kw">ungroup</span>()</code></pre></div>
-<p>Reads in Heart transplant data</p>
+<p>Read in Heart transplant data</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">htx.df &lt;-<span class="st"> </span><span class="kw">read.csv</span>(<span class="kw">file.path</span>(data_dir, <span class="st">&quot;Dx/Hearttransplant Codes.csv&quot;</span>),
                     <span class="dt">stringsAsFactors =</span> <span class="ot">FALSE</span>,
                     <span class="dt">na.strings=</span><span class="kw">c</span>(<span class="st">&quot;&quot;</span>,<span class="st">&quot; &quot;</span>,<span class="st">&quot;  &quot;</span>, <span class="st">&quot;NA&quot;</span>, <span class="st">&quot;N/A&quot;</span>))
@@ -273,7 +288,7 @@ htx.df &lt;-<span class="st"> </span>htx.df <span class="op">%&gt;%</span>
 <span class="st">  </span><span class="kw">filter</span>(HTx.Date <span class="op">==</span><span class="st"> </span><span class="kw">min</span>(HTx.Date)) <span class="op">%&gt;%</span>
 <span class="st">  </span><span class="kw">slice</span>(<span class="dv">1</span>) <span class="op">%&gt;%</span>
 <span class="st">  </span><span class="kw">ungroup</span>()</code></pre></div>
-<p>Reading in heart failure data.</p>
+<p>Read in heart failure data.</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co">#Read heart failure data</span>
 hf.df &lt;-<span class="st"> </span><span class="kw">read.csv</span>(<span class="kw">file.path</span>(data_dir, <span class="st">&quot;Dx/HF DX.csv&quot;</span>), 
                   <span class="dt">stringsAsFactors =</span> <span class="ot">FALSE</span>,
@@ -285,7 +300,7 @@ hf.df &lt;-<span class="st"> </span>hf.df <span class="op">%&gt;%</span>
                <span class="dt">HF.Code =</span> ICD.Diagnosis.Code,
                <span class="dt">HF.Date =</span> Diagnosis.Date) <span class="op">%&gt;%</span>
 <span class="st">        </span><span class="kw">mutate</span>(<span class="dt">HF.Date =</span> <span class="kw">as.POSIXct</span>(HF.Date, <span class="dt">format =</span> <span class="st">&quot;%m/%d/%Y %H:%M:%S&quot;</span>, <span class="dt">tz =</span> <span class="st">&quot;America/New_York&quot;</span>))</code></pre></div>
-<p>Reading in cad data.</p>
+<p>Read in cad data.</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co">#Read CAD data</span>
 cad.df &lt;-<span class="st"> </span><span class="kw">read.csv</span>(<span class="kw">file.path</span>(data_dir, <span class="st">&quot;Dx/CAD DX.csv&quot;</span>), 
                    <span class="dt">stringsAsFactors =</span> <span class="ot">FALSE</span>,
@@ -297,7 +312,7 @@ cad.df &lt;-<span class="st"> </span>cad.df <span class="op">%&gt;%</span>
                <span class="dt">CAD.Code =</span> ICD.Diagnosis.Code, 
                <span class="dt">CAD.Date =</span> Diagnosis.Date) <span class="op">%&gt;%</span>
 <span class="st">        </span><span class="kw">mutate</span>(<span class="dt">CAD.Date =</span> <span class="kw">as.POSIXct</span>(CAD.Date, <span class="dt">format =</span> <span class="st">&quot;%m/%d/%Y %H:%M:%S&quot;</span>, <span class="dt">tz =</span> <span class="st">&quot;America/New_York&quot;</span>))</code></pre></div>
-<p>Reading in OSA data</p>
+<p>Read in OSA data.</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">osa.df &lt;-<span class="st"> </span><span class="kw">read.csv</span>(<span class="kw">file.path</span>(data_dir, <span class="st">&quot;Dx/OSA DX.csv&quot;</span>), 
                    <span class="dt">stringsAsFactors =</span> <span class="ot">FALSE</span>,
                    <span class="dt">na.strings=</span><span class="kw">c</span>(<span class="st">&quot;&quot;</span>,<span class="st">&quot; &quot;</span>,<span class="st">&quot;  &quot;</span>, <span class="st">&quot;NA&quot;</span>, <span class="st">&quot;N/A&quot;</span>))
@@ -307,7 +322,7 @@ osa.df &lt;-<span class="st"> </span>osa.df <span class="op">%&gt;%</span>
                <span class="dt">OSA.Code =</span> ICD.Diagnosis.Code, 
                <span class="dt">OSA.Date =</span> Diagnosis.Date) <span class="op">%&gt;%</span>
 <span class="st">        </span><span class="kw">mutate</span>(<span class="dt">OSA.Date =</span> <span class="kw">as.POSIXct</span>(OSA.Date, <span class="dt">format =</span> <span class="st">&quot;%m/%d/%Y %H:%M:%S&quot;</span>, <span class="dt">tz =</span> <span class="st">&quot;America/New_York&quot;</span>))</code></pre></div>
-<p>Reading in CHD data</p>
+<p>Read in CHD data.</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">chd.df &lt;-<span class="st"> </span><span class="kw">read.csv</span>(<span class="kw">file.path</span>(data_dir, <span class="st">&quot;Dx/CHD DX.csv&quot;</span>), 
                    <span class="dt">stringsAsFactors =</span> <span class="ot">FALSE</span>,
                    <span class="dt">na.strings=</span><span class="kw">c</span>(<span class="st">&quot;&quot;</span>,<span class="st">&quot; &quot;</span>,<span class="st">&quot;  &quot;</span>, <span class="st">&quot;NA&quot;</span>, <span class="st">&quot;N/A&quot;</span>))
@@ -317,7 +332,7 @@ chd.df &lt;-<span class="st"> </span>chd.df <span class="op">%&gt;%</span>
                <span class="dt">CHD.Code =</span> ICD.Diagnosis.Code, 
                <span class="dt">CHD.Date =</span> Diagnosis.Date) <span class="op">%&gt;%</span>
 <span class="st">        </span><span class="kw">mutate</span>(<span class="dt">CHD.Date =</span> <span class="kw">as.POSIXct</span>(CHD.Date, <span class="dt">format =</span> <span class="st">&quot;%m/%d/%Y %H:%M:%S&quot;</span>, <span class="dt">tz =</span> <span class="st">&quot;America/New_York&quot;</span>))</code></pre></div>
-<p>Reading in COPD data</p>
+<p>Read in COPD data.</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">copd.df &lt;-<span class="st"> </span><span class="kw">read.csv</span>(<span class="kw">file.path</span>(data_dir, <span class="st">&quot;Dx/COPD DX.csv&quot;</span>), 
                    <span class="dt">stringsAsFactors =</span> <span class="ot">FALSE</span>,
                    <span class="dt">na.strings=</span><span class="kw">c</span>(<span class="st">&quot;&quot;</span>,<span class="st">&quot; &quot;</span>,<span class="st">&quot;  &quot;</span>, <span class="st">&quot;NA&quot;</span>, <span class="st">&quot;N/A&quot;</span>))
@@ -327,7 +342,7 @@ copd.df &lt;-<span class="st"> </span>copd.df <span class="op">%&gt;%</span>
                <span class="dt">COPD.Code =</span> ICD.Diagnosis.Code, 
                <span class="dt">COPD.Date =</span> Diagnosis.Date) <span class="op">%&gt;%</span>
 <span class="st">        </span><span class="kw">mutate</span>(<span class="dt">COPD.Date =</span> <span class="kw">as.POSIXct</span>(COPD.Date, <span class="dt">format =</span> <span class="st">&quot;%m/%d/%Y %H:%M:%S&quot;</span>, <span class="dt">tz =</span> <span class="st">&quot;America/New_York&quot;</span>))</code></pre></div>
-<p>Reading in DM data</p>
+<p>Read in DM data.</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">dm.df &lt;-<span class="st"> </span><span class="kw">read.csv</span>(<span class="kw">file.path</span>(data_dir, <span class="st">&quot;Dx/DM DX.csv&quot;</span>), 
                    <span class="dt">stringsAsFactors =</span> <span class="ot">FALSE</span>,
                    <span class="dt">na.strings=</span><span class="kw">c</span>(<span class="st">&quot;&quot;</span>,<span class="st">&quot; &quot;</span>,<span class="st">&quot;  &quot;</span>, <span class="st">&quot;NA&quot;</span>, <span class="st">&quot;N/A&quot;</span>))
@@ -337,7 +352,7 @@ dm.df &lt;-<span class="st"> </span>dm.df <span class="op">%&gt;%</span>
                <span class="dt">DM.Code =</span> ICD.Diagnosis.Code, 
                <span class="dt">DM.Date =</span> Diagnosis.Date) <span class="op">%&gt;%</span>
 <span class="st">        </span><span class="kw">mutate</span>(<span class="dt">DM.Date =</span> <span class="kw">as.POSIXct</span>(DM.Date, <span class="dt">format =</span> <span class="st">&quot;%m/%d/%Y %H:%M:%S&quot;</span>, <span class="dt">tz =</span> <span class="st">&quot;America/New_York&quot;</span>))</code></pre></div>
-<p>Reading in HTN data</p>
+<p>Read in HTN data.</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">htn.df &lt;-<span class="st"> </span><span class="kw">read.csv</span>(<span class="kw">file.path</span>(data_dir, <span class="st">&quot;Dx/HTN DX.csv&quot;</span>), 
                    <span class="dt">stringsAsFactors =</span> <span class="ot">FALSE</span>,
                    <span class="dt">na.strings=</span><span class="kw">c</span>(<span class="st">&quot;&quot;</span>,<span class="st">&quot; &quot;</span>,<span class="st">&quot;  &quot;</span>, <span class="st">&quot;NA&quot;</span>, <span class="st">&quot;N/A&quot;</span>))
@@ -439,6 +454,7 @@ main.df2 &lt;-<span class="st"> </span>main.df2 <span class="op">%&gt;%</span>
 <span class="st">  </span><span class="kw">filter</span>((<span class="kw">endPointAfterEcg</span>(ECGDate, LVAD.Date) <span class="op">|</span><span class="st"> </span><span class="kw">is.na</span>(LVAD.Date))) <span class="op">%&gt;%</span>
 <span class="st">  </span><span class="kw">filter</span>((<span class="kw">endPointAfterEcg</span>(ECGDate, HTx.Date) <span class="op">|</span><span class="st"> </span><span class="kw">is.na</span>(HTx.Date))) <span class="op">%&gt;%</span>
 <span class="st">  </span><span class="kw">ungroup</span>()</code></pre></div>
+</div>
 <div id="medications" class="section level2">
 <h2>Medications</h2>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">read.rx.data &lt;-<span class="st"> </span><span class="cf">function</span>(filepath, rx) {
@@ -619,6 +635,9 @@ bb.df &lt;-<span class="st"> </span><span class="kw">rx.match.fun</span>(bb.df, 
 <span class="st">        </span><span class="kw">left_join</span>(bb.OMR.df, <span class="dt">by =</span> <span class="st">&quot;MRN&quot;</span>) <span class="op">%&gt;%</span>
 <span class="st">        </span>
 <span class="st">        </span><span class="kw">mutate</span>(<span class="dt">BB.Rx =</span> <span class="kw">ifelse</span>(<span class="op">!</span><span class="kw">is.na</span>(BB.Rx.OMR.Name), <span class="dv">1</span>, BB.Rx))</code></pre></div>
+</div>
+<div id="lab-data" class="section level2">
+<h2>Lab data</h2>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">read.lab.data &lt;-<span class="st"> </span><span class="cf">function</span>(filepath, lab) {
         
         lab.date &lt;-<span class="st"> </span><span class="kw">paste</span>(lab, <span class="st">&quot;lab.Date&quot;</span>, <span class="dt">sep =</span> <span class="st">&quot;.&quot;</span>)
@@ -774,13 +793,12 @@ gfr.df &lt;-<span class="st"> </span><span class="kw">lab.match.fun</span>(gfr.d
 <span class="st">        </span><span class="kw">left_join</span>(probnp.df, <span class="dt">by =</span> <span class="st">&quot;MRN&quot;</span>) <span class="op">%&gt;%</span>
 <span class="st">        </span><span class="kw">left_join</span>(gfr.df, <span class="dt">by =</span> <span class="st">&quot;MRN&quot;</span>)</code></pre></div>
 </div>
-</div>
-<div id="cleaning" class="section level1">
-<h1>Cleaning</h1>
+<div id="data-processing" class="section level2">
+<h2>Data processing</h2>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co">#drops unused factor levels</span>
 main.df5 &lt;-<span class="st"> </span><span class="kw">droplevels</span>(main.df4)</code></pre></div>
-<div id="exclusion-criteria" class="section level2">
-<h2>Exclusion criteria</h2>
+<div id="exclusion-criteria" class="section level3">
+<h3>Exclusion criteria</h3>
 <ul>
 <li>Patients under 18 years of age</li>
 <li>QRSduration &lt;60ms</li>

@@ -1,32 +1,23 @@
----
-title: "PROMISE"
-date: '`r Sys.Date()`'
-output: github_document
----
+PROMISE
+================
+2018-09-20
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
-
-```{r, echo = FALSE}
-knitr::opts_chunk$set(
-  collapse = TRUE,
-  comment = "#>",
-  fig.path = "README-"
-)
-```
-
-## Installation
+Installation
+------------
 
 You can install promise from github with:
 
-```{r gh-installation, eval = FALSE}
+``` r
 # install.packages("devtools")
 devtools::install_github("dloewenstein/promise")
 ```
 
-## Example
+Example
+-------
 
 This is a basic example which shows you how to solve a common problem:
 
-```{r example}
+``` r
 ## basic example code
 ```

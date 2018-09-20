@@ -1,16 +1,16 @@
 ---
-title: "Reading xml ECG and processing diagnosis"
-author: "Daniel Loewenstein"
-date: "`r Sys.Date()`"
+title: Reading xml ECG and processing diagnosis
+author: Daniel Loewenstein
+date: '`r Sys.Date()`'
 slug: promise
 show_toc: yes
 output:
-    knitr:::html_vignette:
-    number_sections: yes
+  knitr:::html_vignette: ~
+  number_sections: yes
 vignette: >
-    %\VignetteIndexEntry{Reading xml ECG and processing diagnosis}
-    %\VignetteEngine{knitr::rmarkdown_notangle}
-    %\VignetteEncoding{UTF-8}
+  %\VignetteIndexEntry{Reading xml ECG and processing diagnosis}
+  %\VignetteEngine{knitr::rmarkdown_notangle}
+  %\VignetteEncoding{UTF-8}
 ---
 
 ```{r setup, purl=FALSE}
@@ -248,3 +248,4 @@ ecg <- ecg[!is.na(QRSDur)]
 saveRDS(ecg, file.path(DataPackageR::project_path(), "data-raw/promise_xml_ecg-GEN.rds"))
 
 ```
+
