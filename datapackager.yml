@@ -1,5 +1,8 @@
 configuration:
-  files: {}
-  objects: []
+  files:
+    promise.Rmd:
+      enabled: yes
+  objects:
+  - promise
   render_root:
     tmp: '123733'
