@@ -14,7 +14,7 @@
 #' @examples
 set_data_path <- function(path) {
     r_library_path <- .libPaths()
-    promise_data_path <- paste0(r_library_path, "/promise/data/promise.rda")
+    promise_data_path <- paste0(r_library_path, "/promise/data/")
     if (!is.character(path)) {
         stop("path is not a character!")
     } else if (file.exists(promise_data_path)) {
