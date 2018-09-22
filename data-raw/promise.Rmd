@@ -15,6 +15,11 @@ vignette: >
 
 ## Summary
 
+### Date
+
+- Data extraction occured 2017-03-31 from [Deduce](https://www.ctsi.duke.edu/node/908)
+  - [reference](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3063322/)
+
 ### Exclusions
 
 - Exclude all patients with an endpointdate less than 24 hours after ecgdate.
@@ -369,8 +374,8 @@ crt.df <- crt.df %>%
         mutate(CRT.Date = as.POSIXct(CRT.Date, 
                                     format = "%m/%d/%Y %H:%M:%S", 
                                     tz = "America/New_York"),
-               CRT = as.factor(1),
-               Censor = NA) %>%
+               CRT = as.factor(1)
+               ) %>%
         group_by(MRN) %>%
         filter(CRT.Date == min(CRT.Date)) %>%
         slice(1) %>%
