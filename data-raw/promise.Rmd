@@ -8,11 +8,17 @@ output:
   knitr:::html_vignette: ~
   number_sections: yes
 vignette: >
-  %\VignetteIndexEntry{Reading xml ECG and processing diagnosis}
+  %\VignetteIndexEntry{Creating promise database}
   %\VignetteEngine{knitr::rmarkdown_notangle}
   %\VignetteEncoding{UTF-8}
 ---
 
+## Summary
+
+### Exclusions
+
+- Exclude all patients with an endpointdate less than 24 hours after ecgdate.
+- Exlucde all entries without EF data
 
 ## Setup
 
@@ -36,8 +42,14 @@ ecg <- readRDS(file.path(DataPackageR::project_path(), "data-raw/promise_xml_ecg
 
 This is used for setting up a relative path during the package build.
 
-```{r}
-data_dir <- "/mnt/c/Users/Daniel/Cloudstation/Documents/Research/Projects/POHMECG/data/"
+```{r, eval=FALSE}
+data_dir <- DataPackageR::project_data_path()
+```
+
+```{r, echo=FALSE}
+# The above chunk is showed in vignette, but stored data otherwhere during build.
+
+data_dir <- "/mnt/c/Users/Daniel/Cloudstation/Documents/Research/Projects/POHMECG/data"
 ```
 
 ## Echo data
@@ -48,14 +60,13 @@ Time to read in all the echo data.
 #Reads echo data
 echo <- read.csv(file.path(data_dir, "all_echoes.csv"), 
                  stringsAsFactors = FALSE,
-                na.strings=c(""," ","  ", "NA", "N/A"),
+                na.strings = c(""," ","  ", "NA", "N/A"),
                 strip.white = TRUE)
 ```
 
 Since all the data are exported from the Deduce database, Duke University Medical Center, Durham, NC, USA we noticed that it's important to set the timezone (tz) explicitly, since some processing afterwards have been done outside NC and the default R settings is to use the local timezone.
 
 ```{r}
-#Renames Echo.MRN to MRN
 echo <- echo %>%
         rename(MRN = log_history, 
                EF = acq_efclosest,
@@ -66,21 +77,31 @@ echo <- echo %>%
                MR.severity = acq_mr,
                echo_indication = log_sp1) %>%
         
-        mutate(Echo.date = as.POSIXct(log_dos, format = "%m/%d/%Y %H:%M:%S", tz = "America/New_York"),
+        mutate(Echo.date = as.POSIXct(log_dos, 
+                                      format = "%m/%d/%Y %H:%M:%S", 
+                                      tz = "America/New_York"),
                PAP.mm.hg = as.numeric(PAP.mm.hg),
-               
-               #had to remove characters to be able to convert to numericals
-               EF.x = as.numeric(str_replace_all(EF, c("<" = "", ">" = "", "%"= "", "=" = "")))) %>%
-        
-        #excludes all entries wihthout EF
-        filter(!is.na(EF.x)) %>%
-        
+               EF.x = as.numeric(  #  had to remove characters to be able to convert to numericals
+                   str_replace_all(EF, 
+                                   c("<" = "", ">" = "", "%" = "", "=" = "")
+                                   )
+                   )
+               ) %>%
+        filter(!is.na(EF.x)) %>%  #  excludes all entries wihthout EF
         mutate_at(c("AS.severity",
                     "MS.severity",
                     "AR.severity",
                     "MR.severity"), as.factor) %>%
-        
-        select(MRN, Echo.date, EF, EF.x, AS.severity, MS.severity, AR.severity, MR.severity, PAP.mm.hg, echo_indication)
+        select(MRN, 
+               Echo.date, 
+               EF, 
+               EF.x, 
+               AS.severity, 
+               MS.severity, 
+               AR.severity, 
+               MR.severity, 
+               PAP.mm.hg, 
+               echo_indication)
                
         
 
@@ -91,41 +112,67 @@ echo <- echo %>%
 We start by joining all patients by their Medical Record Number (MRN). We filter for all observations with less than or equal to 30 days, between the date of the echo and the date of the ecg. Among these we filter for the ones closest in time.
 
 ```{r, df}
-#Joins echo and ecg by MRN variable
+# Joins echo and ecg by MRN variable
 df <- inner_join(echo, ecg, by = "MRN")
 
 
 df <- df %>%
-        #group by MRN and echo date
+        # group by MRN and echo date
         group_by(MRN) %>%
 
-        #keeps observations with a difference between echo date and ecg date of 30 days or below
-        filter(abs(as.numeric(difftime(Echo.date,ECGDate, units = "days"))) <= 30) %>%
+        # keeps observations with a difference between echo date and ecg date of 30 days or below
+        filter(
+            abs(
+                as.numeric(
+                    difftime(Echo.date, 
+                             ECGDate, 
+                             units = "days")
+                    )
+                )
+            <= 30
+            ) %>%
         
-        #filters by echodate for the observations closest in time (in seconds)
-        filter(abs(as.numeric(difftime(Echo.date,ECGDate, units = "secs"))) == min(abs(as.numeric(difftime(Echo.date, ECGDate, units = "secs"))))) %>%
+        # filters by echo exam and ecg exam closest in time (in seconds)
+        filter(
+            abs(
+                as.numeric(
+                    difftime(Echo.date,
+                             ECGDate, 
+                             units = "secs")
+                    )
+                ) 
+            == min(
+                abs(
+                    as.numeric(
+                        difftime(Echo.date, 
+                                 ECGDate, 
+                                 units = "secs")
+                        )
+                    )
+                )
+            ) %>%
         
-        #removes eventual duplicates
+        # removes eventual duplicates
         unique() %>%
         
-        #ungroups to be able to do next operation
+        # ungroups to be able to do next operation
         ungroup() %>%
         
-        #creates a new column holding number of NA in that row
+        # creates a new column holding number of NA in that row
         mutate(n = rowSums(is.na(.))) %>%
         
-        #group by MRN
+        # group by MRN
         group_by(MRN) %>%
         
-        #within each MRN group selects the observation with the fewest numbers of NA
+        # within each MRN group selects the observation with the fewest numbers of NA
         filter(n == min(n)) %>%
         
-        #for each MRN, select the first entry
+        # for each MRN, select the first entry
         slice(1) %>%
         
         ungroup() %>%
         
-        #drops the added column with number of na's
+        # drops the added column with number of na's
         select(-n)
 ```
 
@@ -142,12 +189,12 @@ Our solution to this is:
 which uses the updated MRNs.
 
 ```{r}
-#Reads in updated MRN data
+# Reads in updated MRN data
 mrn.df <- read.csv(file.path(data_dir, "changedMrns.csv"), 
                    stringsAsFactors = FALSE,
                    strip.white = TRUE)
 
-#sets columnnames
+# sets columnnames
 colnames(mrn.df) <- c("MRN", "new.MRN")
 
 ```
@@ -156,24 +203,28 @@ There were duplicates of the new MRN were different old MRNs had been assigned
 the same new MRN, all of these are removed below.
 
 ```{r}
-#selects all rows in mrn.df were new.MRN is not one of the new.MRNs that
-#are duplicated.
+# selects all rows in mrn.df were new.MRN is not one of the new.MRNs that
+# are duplicated.
 mrn.df <- mrn.df[!mrn.df$new.MRN %in% 
                          mrn.df[duplicated(mrn.df$new.MRN),]$new.MRN,]
 
-#Excludes all MRNs in df that also exist in mrn.df$new.MRN
+# Excludes all MRNs in df that also exist in mrn.df$new.MRN
 df <- df[!df$MRN %in% mrn.df$new.MRN,]
 
-#Return all rows from x, and all columns from x and y.
-#Rows in x with no match in y will have NA values in the new columns.
-#If there are multiple matches between x and y, all combinations of 
-#the matches are returned.
+```
+
+Return all rows from df, and all columns from df and mrn.df. Rows in df with no match in mrn.df will have NA values in the new columns. If there are multiple matches between df and mrn.df, all combinations of the matches are returned.
+
+```{r}
 df <- left_join(df, mrn.df, by = "MRN")
 
-#Replaces old MRNs with new ones, dropping the newly added new.MRN column.
+# Replaces old MRNs with new ones, dropping the newly added new.MRN column.
 df <- df %>%
-        mutate(MRN = if_else(!is.na(new.MRN), new.MRN, MRN)) %>%
-        select(- new.MRN)
+        mutate(MRN = if_else(!is.na(new.MRN),
+                             true = new.MRN, 
+                             false = MRN)
+               ) %>%
+        select(-new.MRN)
 ```
 
 ## Demographics 
@@ -183,7 +234,7 @@ Reading in demographics datas regarding DOB, gender, race and date of death
 ```{r}
 demo.df <- read.csv(file.path(data_dir, "DOB_GENDER_Race_DOD.csv"),
                     stringsAsFactors = FALSE,
-                    na.strings=c(""," ","  ", "NA", "N/A"),
+                    na.strings = c(""," ","  ", "NA", "N/A"),
                     strip.white = TRUE)
 
 ```
@@ -196,11 +247,13 @@ demo.df <- demo.df %>%
                Gender = as.factor(Patient.Gender), 
                Race = as.factor(Patient.Race), 
                DOB = as.POSIXct(Patient.Date.of.Birth, 
-                                format = "%m/%d/%Y %H:%M:%S", tz = "America/New_York"),
-               Age.at.ECG = as.integer(0), #for future use
+                                format = "%m/%d/%Y %H:%M:%S", 
+                                tz = "America/New_York"),
+               Age.at.ECG = as.integer(0), # for future use
                Death.index = as.factor(Patient.Death.Indicator),
                DOD = as.POSIXct(Patient.Death.Date, 
-                                format = "%m/%d/%Y %H:%M:%S", tz = "America/New_York"))
+                                format = "%m/%d/%Y %H:%M:%S", 
+                                tz = "America/New_York"))
 ```
 
 
@@ -230,25 +283,96 @@ This way of merging returns all rows from df where there are matching values in 
 ```{r}
 main.df <- inner_join(df, demo.df, by = "MRN") %>%
         
-        #we need the patient age at the time of the ecg
-        mutate(Age.at.ECG = round(as.integer(difftime(ECGDate, 
-                                                      DOB, 
-                                                      units = "days"))/365.25))
+        # we need the patient age at the time of the ecg
+        mutate(Age.at.ECG = round(
+            as.integer(
+                difftime(ECGDate,
+                         DOB,
+                         units = "days")
+                )
+            / 365.25)
+            )
         
 ```
 
-Read in the Cardiac Resynchronization Therapy (CRT) data.
 
 ```{r}
-crt.df <- read.csv(file.path(data_dir, "Dx/CRT Codes.csv"), 
+#' Get dx file path
+#'
+#' @param file_name A \code{character}
+#'
+#' @return
+#'
+#' @examples
+get_path <- function(file_name, sub_folder){
+    path <- file.path(data_dir, paste0(sub_folder, "/", file_name))
+}
+```
+
+```{r}
+#' Import and format diagnosis data
+#'
+#' @param file_path \code{character}
+#' @param abb_dx variable name, unquoted
+#'
+#' @return
+#'
+#' @examples
+read_diagnosis_data <- function(file_name, abb_dx, type_data = c("diagnosis", "procedure")) {
+    
+    .sub_folder <- "Dx"
+    .file_path <- get_path(file_name = file_name,
+                            sub_folder = .sub_folder)
+    .abb_dx <- enquo(abb_dx)
+    .dx_code <- paste0(quo_name(.abb_dx), ".Code")
+    .dx_date <- paste0(quo_name(.abb_dx), ".Date")
+    
+    .raw_data <- read.csv(
+        .file_path,
+        stringsAsFactors = FALSE,
+        na.strings = c(""," ","  ", "NA", "N/A")
+        )
+    
+    if (type_data[1] == "diagnosis") {
+    .formatted_data <- .raw_data %>% 
+        rename(MRN         = Duke.MRN,
+               !!.dx_code := ICD.Diagnosis.Code,
+               !!.dx_date := Diagnosis.Date) %>% 
+        mutate(!!.dx_date := as.POSIXct(.data[[!!.dx_date]],
+                                     format = "%m/%d/%Y %H:%M:%S",
+                                     tz     = "America/New_York")
+               )
+    } else if (type_data[1] == "procedure") {
+            .formatted_data <- .raw_data %>% 
+        rename(MRN         = Duke.MRN,
+               !!.dx_code := ICD.Procedure.Code,
+               !!.dx_date := Procedure.Date) %>% 
+        mutate(!!.dx_date := as.POSIXct(.data[[!!.dx_date]],
+                                     format = "%m/%d/%Y %H:%M:%S",
+                                     tz     = "America/New_York"),
+               !!quo_name(.abb_dx) := as.factor(1)) %>%
+                group_by(MRN) %>%
+                filter(!!.dx_date == min(!!.dx_date)) %>%
+                slice(1) %>%
+                ungroup()
+    }
+}
+```
+
+### Procedure data
+
+```{r}
+crt.df <- read.csv(get_path("CRT Codes.csv", "Dx"), 
                    stringsAsFactors = FALSE,
-                   na.strings=c(""," ","  ", "NA", "N/A"))
+                   na.strings = c(""," ","  ", "NA", "N/A")
+                   )
 
 crt.df <- crt.df %>%
         rename(MRN = Duke.MRN, 
                CRT.Date = ICD.CPT.Procedure.Date) %>%
         mutate(CRT.Date = as.POSIXct(CRT.Date, 
-                                    format = "%m/%d/%Y %H:%M:%S", tz = "America/New_York"),
+                                    format = "%m/%d/%Y %H:%M:%S", 
+                                    tz = "America/New_York"),
                CRT = as.factor(1),
                Censor = NA) %>%
         group_by(MRN) %>%
@@ -257,165 +381,23 @@ crt.df <- crt.df %>%
         ungroup()
 ```
 
-Read in LVAD data
-
 ```{r}
-lvad.df <- read.csv(file.path(data_dir, "Dx/LVAD Codes.csv"),
-                    stringsAsFactors = FALSE,
-                    na.strings=c(""," ","  ", "NA", "N/A"))
-
-lvad.df <- lvad.df %>%
-        rename(MRN = Duke.MRN,
-               LVAD.Code = ICD.Procedure.Code,
-               LVAD.Date = Procedure.Date) %>%
-        mutate(LVAD.Date = as.POSIXct(LVAD.Date, 
-                                                format = "%m/%d/%Y %H:%M:%S", tz = "America/New_York"),
-               LVAD = as.factor(1)) %>%
-        group_by(MRN) %>%
-        filter(LVAD.Date == min(LVAD.Date)) %>%
-        slice(1) %>%
-        ungroup()
+lvad.df <- read_diagnosis_data(file_name = "LVAD Codes.csv", abb_dx = LVAD, type_data = "procedure")
+htx.df <- read_diagnosis_data(file_name = "Hearttransplant Codes.csv", abb_dx = HTx, type_data = "procedure")
 ```
 
 
-Read in Heart transplant data
+### Diagnosis data
 
 ```{r}
-htx.df <- read.csv(file.path(data_dir, "Dx/Hearttransplant Codes.csv"),
-                    stringsAsFactors = FALSE,
-                    na.strings=c(""," ","  ", "NA", "N/A"))
-
-htx.df <- htx.df %>%
-        rename(MRN = Duke.MRN, 
-               HTx.Code = ICD.Procedure.Code,
-               HTx.Date = Procedure.Date) %>%
-        mutate(HTx.Date = as.POSIXct(HTx.Date, 
-                                                format = "%m/%d/%Y %H:%M:%S", tz = "America/New_York"),
-               HTx = as.factor(1)) %>%
-  group_by(MRN) %>%
-  filter(HTx.Date == min(HTx.Date)) %>%
-  slice(1) %>%
-  ungroup()
-
-```
-
-
-Read in heart failure data.
-
-```{r}
-#Read heart failure data
-hf.df <- read.csv(file.path(data_dir, "Dx/HF DX.csv"), 
-                  stringsAsFactors = FALSE,
-                  na.strings=c(""," ","  ", "NA", "N/A"))
-
-#Renames HF variables
-hf.df <- hf.df %>%
-        rename(MRN = Duke.MRN, 
-               HF.Code = ICD.Diagnosis.Code,
-               HF.Date = Diagnosis.Date) %>%
-        mutate(HF.Date = as.POSIXct(HF.Date, format = "%m/%d/%Y %H:%M:%S", tz = "America/New_York"))
-
-```
-
-Read in cad data.
-
-```{r}
-
-#Read CAD data
-cad.df <- read.csv(file.path(data_dir, "Dx/CAD DX.csv"), 
-                   stringsAsFactors = FALSE,
-                   na.strings=c(""," ","  ", "NA", "N/A"))
-
-#Renames CAD variables
-cad.df <- cad.df %>%
-        rename(MRN = Duke.MRN, 
-               CAD.Code = ICD.Diagnosis.Code, 
-               CAD.Date = Diagnosis.Date) %>%
-        mutate(CAD.Date = as.POSIXct(CAD.Date, format = "%m/%d/%Y %H:%M:%S", tz = "America/New_York"))
-```
-
-Read in OSA data.
-
-```{r}
-osa.df <- read.csv(file.path(data_dir, "Dx/OSA DX.csv"), 
-                   stringsAsFactors = FALSE,
-                   na.strings=c(""," ","  ", "NA", "N/A"))
-
-osa.df <- osa.df %>%
-        rename(MRN = Duke.MRN, 
-               OSA.Code = ICD.Diagnosis.Code, 
-               OSA.Date = Diagnosis.Date) %>%
-        mutate(OSA.Date = as.POSIXct(OSA.Date, format = "%m/%d/%Y %H:%M:%S", tz = "America/New_York"))
-```
-
-Read in CHD data.
-
-```{r}
-chd.df <- read.csv(file.path(data_dir, "Dx/CHD DX.csv"), 
-                   stringsAsFactors = FALSE,
-                   na.strings=c(""," ","  ", "NA", "N/A"))
-
-chd.df <- chd.df %>%
-        rename(MRN = Duke.MRN, 
-               CHD.Code = ICD.Diagnosis.Code, 
-               CHD.Date = Diagnosis.Date) %>%
-        mutate(CHD.Date = as.POSIXct(CHD.Date, format = "%m/%d/%Y %H:%M:%S", tz = "America/New_York"))
-```
-
-Read in COPD data.
-
-```{r}
-copd.df <- read.csv(file.path(data_dir, "Dx/COPD DX.csv"), 
-                   stringsAsFactors = FALSE,
-                   na.strings=c(""," ","  ", "NA", "N/A"))
-
-copd.df <- copd.df %>%
-        rename(MRN = Duke.MRN, 
-               COPD.Code = ICD.Diagnosis.Code, 
-               COPD.Date = Diagnosis.Date) %>%
-        mutate(COPD.Date = as.POSIXct(COPD.Date, format = "%m/%d/%Y %H:%M:%S", tz = "America/New_York"))
-```
-
-Read in DM data.
-
-```{r}
-dm.df <- read.csv(file.path(data_dir, "Dx/DM DX.csv"), 
-                   stringsAsFactors = FALSE,
-                   na.strings=c(""," ","  ", "NA", "N/A"))
-
-dm.df <- dm.df %>%
-        rename(MRN = Duke.MRN, 
-               DM.Code = ICD.Diagnosis.Code, 
-               DM.Date = Diagnosis.Date) %>%
-        mutate(DM.Date = as.POSIXct(DM.Date, format = "%m/%d/%Y %H:%M:%S", tz = "America/New_York"))
-```
-
-Read in HTN data.
-
-```{r}
-htn.df <- read.csv(file.path(data_dir, "Dx/HTN DX.csv"), 
-                   stringsAsFactors = FALSE,
-                   na.strings=c(""," ","  ", "NA", "N/A"))
-
-htn.df <- htn.df %>%
-        rename(MRN = Duke.MRN, 
-               HTN.Code = ICD.Diagnosis.Code, 
-               HTN.Date = Diagnosis.Date) %>%
-        mutate(HTN.Date = as.POSIXct(HTN.Date, format = "%m/%d/%Y %H:%M:%S", tz = "America/New_York"))
-```
-
-Reading in AF data
-
-```{r}
-af.df <- read.csv(file.path(data_dir, "Dx/AF DX.csv"), 
-                   stringsAsFactors = FALSE,
-                   na.strings=c(""," ","  ", "NA", "N/A"))
-
-af.df <- af.df %>%
-        rename(MRN = Duke.MRN, 
-               AF.Code = ICD.Diagnosis.Code, 
-               AF.Date = Diagnosis.Date) %>%
-        mutate(AF.Date = as.POSIXct(AF.Date, format = "%m/%d/%Y %H:%M:%S", tz = "America/New_York"))
+af.df <- read_diagnosis_data(file_name = "AF DX.csv", abb_dx = AF)
+cad.df <- read_diagnosis_data(file_name = "CAD DX.csv", abb_dx = CAD)
+chd.df <- read_diagnosis_data(file_name = "CHD DX.csv", abb_dx = CHD)
+copd.df <- read_diagnosis_data(file_name = "COPD DX.csv", abb_dx = COPD)
+dm.df <- read_diagnosis_data(file_name = "DM DX.csv", abb_dx = DM)
+hf.df <- read_diagnosis_data(file_name = "HF DX.csv", abb_dx = HF)
+htn.df <- read_diagnosis_data(file_name = "HTN DX.csv", abb_dx = HTN)
+osa.df <- read_diagnosis_data(file_name = "OSA DX.csv", abb_dx = OSA)
 ```
 
 
@@ -429,61 +411,49 @@ ecgdates.df <- main.df %>%
 
 Function to select diagnosis meeting match criteria, the first date that is not more than >30 days after ECG date.
 
+For some patients there will be multiple entries with the same diagnosis date, this is due to different diagnosis codes, which one does not matter so we are selecting the first one.
+
 ```{r}
-dx.match.fun <- function(x, diagnosis) { 
+#' Match MRN to diagnosis data
+#'
+#' @param x \code{data.frame} with diagnosis data.
+#' @param diagnosis abbreviated diagnosis, unquoted.
+#'
+#' @return
+#'
+#' @examples
+match_mrn_diagnosis <- function(x, diagnosis) { 
   
-        #x should be dataframe, diagnosis in quotes
-        #and capital letters
-  
-        #Creates date variable with the diagnosis in capital letters
-        #followed by date
-        date <- paste(diagnosis, "Date", sep = ".")
+    .dx <- enquo(diagnosis)
+    .dx_date <- paste0(quo_name(.dx), ".Date")
         
-        #filters for the earliest diagnosis date
-        filter_call <- interp(~ a == min(a) , a = as_name(date))
-        
-        #filters for the diagnosis date that are not more than 30 days after
-        #ecgdate
-        filter_call2 <- interp(~ as.numeric(difftime(ECGDate, a, units = "days")) >=(-30),
-                               a = as_name(date))
-        
-        #starts with joining x with ecgdates dataframe
-        inner_join(x, ecgdates.df, by = "MRN") %>%
-                group_by(MRN) %>%
-                filter_(.dots = list(filter_call)) %>%
-                filter_(.dots = list(filter_call2)) %>%
-                
-                #for some patients there will be multiple entries with the
-                #same diagnosis date, this is due to different
-                #diagnosis codes, which one does not matter
-                #so we are selecting the first one
-                slice(1) %>%
-                
-                ungroup() %>%
-                
-                #creates a new column with logical indicating presence of the current diagnosis
-                mutate_(.dots = setNames(list(~ as.factor(1)), diagnosis)) %>%
-                
-                select(-ECGDate)
+    .matched_data <- x %>% 
+        inner_join(ecgdates.df, by = "MRN") %>%  #  join x with ecgdates dataframe
+        group_by(MRN) %>% 
+        filter(!!.dx_date == min(!!.dx_date)) %>%
+        filter(as.numeric(
+            difftime(ECGDate,
+                     .data[[!!.dx_date]],
+                     units = "days")
+        )
+        >= (-30)
+        ) %>% 
+        slice(1) %>% 
+        ungroup() %>% 
+        mutate(!!quo_name(.dx) := factor(1)) %>%  #  Diagnosis indicator
+        select(-ECGDate)
 }
 ```
 
 ```{r}
-af.df <- dx.match.fun(af.df, "AF")
-
-cad.df <- dx.match.fun(cad.df, "CAD")
-
-chd.df <- dx.match.fun(chd.df, "CHD")
-
-copd.df <- dx.match.fun(copd.df, "COPD")
-
-dm.df <- dx.match.fun(dm.df, "DM")
-
-hf.df <- dx.match.fun(hf.df, "HF")
-
-htn.df <- dx.match.fun(htn.df, "HTN")
-
-osa.df <- dx.match.fun(osa.df, "OSA")
+af.df <- match_mrn_diagnosis(af.df, AF)
+cad.df <- match_mrn_diagnosis(cad.df, CAD)
+chd.df <- match_mrn_diagnosis(chd.df, CHD)
+copd.df <- match_mrn_diagnosis(copd.df, COPD)
+dm.df <- match_mrn_diagnosis(dm.df, DM)
+hf.df <- match_mrn_diagnosis(hf.df, HF)
+htn.df <- match_mrn_diagnosis(htn.df, HTN)
+osa.df <- match_mrn_diagnosis(osa.df, OSA)
 
 ```
 
@@ -491,17 +461,20 @@ Joining diagnosis data to main.df
 
 ```{r}
 
-main.df2 <- left_join(main.df, af.df, by = "MRN") %>%
-        left_join(cad.df, by = "MRN") %>%
-        left_join(chd.df, by = "MRN") %>%
-        left_join(copd.df, by = "MRN") %>%
-        left_join(crt.df, by = "MRN") %>%
-        left_join(dm.df, by = "MRN") %>%
-        left_join(hf.df, by = "MRN") %>%
-        left_join(htn.df, by = "MRN") %>%
-        left_join(htx.df, by = "MRN") %>%
-        left_join(lvad.df, by = "MRN") %>%
-        left_join(osa.df, by = "MRN")
+combine_list <- list(main.df, 
+                     af.df, 
+                     cad.df, 
+                     chd.df, 
+                     copd.df, 
+                     dm.df, 
+                     hf.df, 
+                     htn.df, 
+                     osa.df,
+                     crt.df,
+                     lvad.df,
+                     htx.df)
+
+main.df2 <- purrr::reduce(combine_list, left_join, by = "MRN")
 
 ```
 
@@ -510,8 +483,6 @@ main.df2 <- left_join(main.df, af.df, by = "MRN") %>%
 
 endPointAfterEcg <- function(ecgdate, endpointdate) {
   x <- (as.numeric(difftime(ecgdate, endpointdate, units = "days")) <= (-1))
-  
-  return(x)
 }
 
 
@@ -527,283 +498,207 @@ main.df2 <- main.df2 %>%
 ## Medications
 
 ```{r}
-read.rx.data <- function(filepath, rx) {
+read_rx_data <- function(file_name, abb_rx, patient = c("in", "out")){
+    
+    .rx <- enquo(abb_rx)
+    .path <- get_path(file_name = file_name,
+                      sub_folder = "Medications")
+    
+    .rx_data <- read.csv(.path,
+                         stringsAsFactors = FALSE,
+                         na.strings = c(""," ","  ", "NA", "N/A"))
+    
+    if (patient[1] == "in") {
+        .rx_name <- quo_name(.rx)
+        .rx_start_date <- paste0(quo_name(.rx), ".Rx.Start")
+        .rx_end_date   <- paste0(quo_name(.rx), ".Rx.End")
         
-        rx.name <- paste(rx, "Rx.Name", sep = ".")
-        rx.start <- paste(rx, "Rx.Start", sep = ".")
-        rx.end <- paste(rx, "Rx.End", sep = ".")
+        .formatted_data <- .rx_data %>% 
+            rename(MRN = Duke.MRN,
+                   !!.rx_name := Medication.Name,
+                   !!.rx_start_date := Start.Date,
+                   !!.rx_end_date   := End.Date) %>% 
+            mutate(!!.rx_start_date := as.POSIXct(.data[[!!.rx_start_date]],
+                                                  format = "%m/%d/%Y %H:%M:%S", 
+                                                  tz = "America/New_York"),
+                   !!.rx_end_date   := as.POSIXct(.data[[!!.rx_end_date]],
+                                                  format = "%m/%d/%Y %H:%M:%S", 
+                                                  tz = "America/New_York")
+            )
+    } else if (patient[1] == "out") {
+        .rx_name <- paste0(quo_name(.rx), ".Rx.OMR")
+        .rx_date <- paste0(quo_name(.rx), ".Rx.OMR.Date")
         
-        mutate_rx.start <- interp(~ as.POSIXct(a, format = "%m/%d/%Y %H:%M:%S", tz = "America/New_York"),
-                              a = as_name(rx.start))
         
-        mutate_rx.end <- interp(~ as.POSIXct(a, format = "%m/%d/%Y %H:%M:%S", tz = "America/New_York"),
-                               a = as_name(rx.end))
+        .formatted_data <- .rx_data %>% 
+            rename(MRN = Duke.MRN,
+                   !!.rx_name := OMR.Medication.Name,
+                   !!.rx_date := OMR.Report.Date) %>% 
+            mutate(!!.rx_date := as.POSIXct(.data[[!!.rx_date]],
+                                            format = "%m/%d/%Y %H:%M:%S", 
+                                                  tz = "America/New_York")
+            )
+    }
+}
+```
+
+
+```{r}
+classIII.df <- read_rx_data("Class III Patient Medications.csv", ClassIII)
+classIc.df <- read_rx_data("Class Ic Patient Medication data.csv", ClassIc)
+
+bb_list <- list("BB Patient Med2013 to 2017.csv",
+                "BB Patient Med2010 to 2013.csv",
+                "BB Patient Med2006 to 2010.csv")
+bb.df <- map_df(bb_list, read_rx_data, abb_rx = BB)
+
+amiodarone.df <- read_rx_data("AmiodaronePatient Medication data.csv",Amiodarone)
+
+acei_list <- list("ACEI Patient Medications 2013to2017.csv",
+                  "ACEI Patient Medications 2010to2013.csv",
+                  "ACEI Patient Medications 2006to2010.csv")
+
+acei.df <- map_df(acei_list, read_rx_data, abb_rx = ACEI)
+```
+
+
+We only want medication entries where the start date was not more than 30 days after ecgdate,
+or where the end date was more than 30 days before ecgdate.
+
+For outpatients, denoted by OMR, where we only have a date indicating whether that patient had the medication at that point in time or not, we filter for the absolute difference in days between that timepoint and ecgdate to be less than or equal to 30 days.
+
+```{r}
+match_mrn_rx <- function(x, rx, patient = c("in", "out")){
+    .rx <- enquo(rx)
+    .matched_data <- inner_join(ecgdates.df, x, by = "MRN")
+    .rx_name <- paste0(quo_name(.rx), ".Rx")
+    
+    if (patient[1] == "in"){
+        .rx_start_date <- paste0(quo_name(.rx), ".Rx.Start")
+        .rx_end_date <- paste0(quo_name(.rx), ".Rx.End")
         
-        read.csv(file = filepath, 
-                   stringsAsFactors = FALSE,
-                   na.strings=c(""," ","  ", "NA", "N/A")) %>%
-                
-                rename_(.dots = setNames(list("Duke.MRN",
-                                      "Medication.Name",
-                                      "Start.Date",
-                                      "End.Date"),
-                                 list("MRN",
-                                      rx.name,
-                                      rx.start,
-                                      rx.end))) %>%
-                mutate_(.dots = setNames(list(mutate_rx.start,
-                                              mutate_rx.end), 
-                                         list(rx.start,
-                                              rx.end)))
+        .formatted_data <- .matched_data %>% 
+            mutate(
+                start_diff = as.numeric(
+                    difftime(ECGDate, .data[[!!.rx_start_date]], units = "days")
+                ),
+                end_diff = as.numeric(
+                    difftime(ECGDate, .data[[!!.rx_end_date]], units = "days")
+                )
+            ) %>% 
+            group_by(MRN) %>% 
+            filter(start_diff >= (-30)) %>%
+            filter(end_diff <= 30) %>% 
+            slice(1) %>% 
+            ungroup() %>% 
+            mutate(!!.rx_name := factor(1)) %>% 
+            select(-ECGDate, -start_diff, -end_diff)
+    } else if (patient[1] == "out") {
+        .rx_report_date <- paste0(quo_name(.rx), ".Rx.OMR.Date")
+        
+        .formatted_data <- .matched_data %>% 
+            group_by(MRN) %>%
+            mutate(time_diff = abs(
+                as.numeric(
+                    difftime(ECGDate,
+                             .data[[!!.rx_report_date]],
+                             units = "days")
+                    )
+                )
+            ) %>% 
+            filter(time_diff == min(time_diff, na.rm = TRUE)) %>% 
+            filter(time_diff <= 30) %>% 
+            slice(1) %>% 
+            ungroup() %>% 
+            mutate(!!.rx_name := factor(1)) %>%
+            select(-time_diff, -ECGDate)
+    }
 }
 ```
 
 ```{r}
-classIII.df <- read.rx.data(file.path(data_dir, "Medications/Class III Patient Medications.csv"),
-                            "ClassIII")
+classIII.df <- match_mrn_rx(classIII.df, ClassIII)
+classIc.df <- match_mrn_rx(classIc.df, ClassIc)
+acei.df <- match_mrn_rx(acei.df, ACEI)
+amiodarone.df <- match_mrn_rx(amiodarone.df, Amiodarone)
+bb.df <- match_mrn_rx(bb.df, BB)
 ```
 
 ```{r}
-classIc.df <- read.rx.data(file.path(data_dir, "Medications/Class Ic Patient Medication data.csv"),
-                           "ClassIc")
+classIII.OMR.df <- read_rx_data("Class III OMR data.csv", ClassIII, patient = "out")
+classIc.OMR.df <- read_rx_data("Class Ic OMR data.csv", ClassIc, patient = "out")
+
+bb_OMR_list <- list(
+                "BB OMR2010 to 2013.csv",
+                "BB OMR2006 to 2010.csv"
+                )
+bb.OMR.df <- map_df(bb_OMR_list, read_rx_data, abb_rx = BB, patient = "out")
+
+amiodarone.OMR.df <- read_rx_data("AmiodaroneOMR data.csv", Amiodarone, patient = "out")
+
+acei_OMR_list <- list(
+                  "ACEI OMR2010 to 2013.csv",
+                  "ACEI OMR2006 to 2010.csv"
+                  )
+
+acei.OMR.df <- map_df(acei_OMR_list, read_rx_data, abb_rx = ACEI, patient = "out")
 ```
 
 ```{r}
-bb1.df <- read.rx.data(file.path(data_dir, "Medications/BB Patient Med2013 to 2017.csv"),
-                           "BB")
+classIII.OMR.df <- match_mrn_rx(classIII.OMR.df, ClassIII, patient = "out")
+classIc.OMR.df <- match_mrn_rx(classIc.OMR.df, ClassIc, patient = "out")
+acei.OMR.df <- match_mrn_rx(acei.OMR.df, ACEI, patient = "out")
+amiodarone.OMR.df <- match_mrn_rx(amiodarone.OMR.df, Amiodarone, patient = "out")
+bb.OMR.df <- match_mrn_rx(bb.OMR.df, BB, patient = "out")
 ```
-
-```{r}
-bb2.df <- read.rx.data(file.path(data_dir, "Medications/BB Patient Med2010 to 2013.csv"),
-                           "BB")
-```
-
-```{r}
-bb3.df <- read.rx.data(file.path(data_dir, "Medications/BB Patient Med2006 to 2010.csv"),
-                           "BB")
-```
-
-```{r}
-bb.df <- rbind(bb1.df, bb2.df, bb3.df)
-```
-
-```{r}
-amiodarone.df <- read.rx.data(file.path(data_dir, "Medications/AmiodaronePatient Medication data.csv"),
-                           "Amiodarone")
-```
-
-```{r}
-acei1.df <- read.rx.data(file.path(data_dir, "Medications/ACEI Patient Medications 2013to2017.csv"),
-                           "ACEI")
-```
-
-```{r}
-acei2.df <- read.rx.data(file.path(data_dir, "Medications/ACEI Patient Medications 2010to2013.csv"),
-                           "ACEI")
-```
-
-```{r}
-acei3.df <- read.rx.data(file.path(data_dir, "Medications/ACEI Patient Medications 2006to2010.csv"),
-                           "ACEI")
-```
-
-```{r}
-acei.df <- rbind(acei1.df, acei2.df, acei3.df)
-```
-
-```{r}
-rx.match.fun <- function(x, rx) {
-      
-        startdate <- paste(rx, "Rx.Start", sep = ".")
-        
-        enddate <- paste(rx, "Rx.End", sep = ".")
-        
-        rx.log <- paste(rx, "Rx", sep = ".")
-        
-        #filters for the Rx startdate that is not more than 30 days after
-        #ecgdate and Rx enddate not more than 30 days before ecgdate
-        date_filter <- interp(~ as.numeric(difftime(ECGDate, a, units = "days")) >=(-30) &
-                                           as.numeric(difftime(ECGDate, b, units = "days")) <=(30),
-                                   a = as_name(startdate),
-                                   b = as_name(enddate))
-        
-        #starts with joining x with ecgdates dataframe
-        inner_join(x, ecgdates.df, by = "MRN") %>%
-                group_by(MRN) %>%
-                filter_(.dots = list(date_filter)) %>%
-                
-                #adds column indicating presence of type of medication
-                mutate_(.dots = setNames(list(~as.factor(1)), rx.log)) %>%
-                slice(1) %>%
-                ungroup() %>%
-                select(-ECGDate)
-                
-}
-```
-
-```{r}
-classIII.df <- rx.match.fun(classIII.df, "ClassIII")
-
-classIc.df <- rx.match.fun(classIc.df, "ClassIc")
-
-acei.df <- rx.match.fun(acei.df, "ACEI")
-
-amiodarone.df <- rx.match.fun(amiodarone.df, "Amiodarone")
-
-bb.df <- rx.match.fun(bb.df, "BB")
-```
-
-```{r}
-read.rx.omr.data <- function(filepath, rx) {
-        
-        rx.name <- paste(rx, "Rx.OMR.Name", sep = ".")
-        rx.date <- paste(rx, "Rx.OMR.Date", sep = ".")
-        
-        mutate_rx.date <- interp(~ as.POSIXct(a, format = "%m/%d/%Y %H:%M:%S", tz = "America/New_York"),
-                              a = as_name(rx.date))
-        
-        read.csv(file = filepath, 
-                   stringsAsFactors = FALSE,
-                   na.strings=c(""," ","  ", "NA", "N/A")) %>%
-                
-                rename_(.dots = setNames(list("Duke.MRN",
-                                      "OMR.Medication.Name",
-                                      "OMR.Report.Date"),
-                                 list("MRN",
-                                      rx.name,
-                                      rx.date))) %>%
-                
-                mutate_(.dots = setNames(list(mutate_rx.date),rx.date))
-}
-```
-
-```{r}
-classIII.OMR.df <- read.rx.omr.data(file.path(data_dir, "Medications/Class III OMR data.csv"),
-                           "ClassIII")
-```
-
-```{r}
-classIc.OMR.df <- read.rx.omr.data(file.path(data_dir, "Medications/Class Ic OMR data.csv"),
-                           "ClassIc")
-```
-
-```{r}
-bb1.OMR.df <- read.rx.omr.data(file.path(data_dir, "Medications/BB OMR2010 to 2013.csv"),
-                           "BB")
-```
-
-```{r}
-bb2.OMR.df <- read.rx.omr.data(file.path(data_dir, "Medications/BB OMR2006 to 2010.csv"),
-                           "BB")
-```
-
-```{r}
-bb.OMR.df <- rbind(bb1.OMR.df, bb2.OMR.df)
-```
-
-```{r}
-amiodarone.OMR.df <- read.rx.omr.data(file.path(data_dir, "Medications/AmiodaroneOMR data.csv"),
-                           "Amiodarone")
-```
-
-```{r}
-acei1.OMR.df <- read.rx.omr.data(file.path(data_dir, "Medications/ACEI OMR2010 to 2013.csv"),
-                           "ACEI")
-```
-
-```{r}
-acei2.OMR.df <- read.rx.omr.data(file.path(data_dir, "Medications/ACEI OMR2006 to 2010.csv"),
-                           "ACEI")
-```
-
-```{r}
-acei.OMR.df <- rbind(acei1.OMR.df, acei2.OMR.df)
-```
-
-
-```{r}
-rx.omr.match <- function(x, rx) {
-        rxdate <- paste(rx, "Rx.OMR.Date", sep = ".")
-        
-        mutate_difftime <- interp(~ abs(as.numeric(difftime(ECGDate, a, units = "days"))),
-                                  a = as_name(rxdate))
-        
-        #filters for the Rx date that is within 30 days of
-        #ecgdate
-        rxdate_filter <- interp(~ abs(as.numeric(difftime(ECGDate, a, units = "days"))) <=30,
-                                   a = as_name(rxdate))
-        
-        #starts with joining x with ecgdates dataframe
-        inner_join(x, ecgdates.df, by = "MRN") %>%
-                group_by(MRN) %>%
-                mutate_(.dots = setNames(list(mutate_difftime), "diff")) %>%
-                filter(diff == min(diff)) %>%
-                filter_(.dots = rxdate_filter) %>%
-                slice(1) %>%
-                ungroup() %>%
-                select(-c(diff,ECGDate))
-}
-```
-
-```{r}
-classIII.OMR.df <- rx.omr.match(classIII.OMR.df, "ClassIII")
-```
-
-```{r}
-classIc.OMR.df <- rx.omr.match(classIc.OMR.df, "ClassIc")
-```
-
-```{r}
-bb.OMR.df <- rx.omr.match(bb.OMR.df, "BB")
-```
-
-```{r}
-amiodarone.OMR.df <- rx.omr.match(amiodarone.OMR.df, "Amiodarone")
-```
-
-```{r}
-acei.OMR.df <- rx.omr.match(acei.OMR.df, "ACEI")
-```
-
 Joining diagnosis data to main.df
-Earlier added column indicating whether specific type of medication was used or not
-except from joining hopstial and OMR patient medcation data this code also updates
-that column with a 1 if presence of entry in OMR medication column
+
+Earlier added column indicating whether specific type of medication was used or not except from joining hospital and OMR patient medcation data this code also updates that column with a 1 if presence of entry in OMR medication column
 
 ```{r}
-main.df3 <- left_join(main.df2, classIII.df, by = "MRN") %>%
-        
-        left_join(classIII.OMR.df, by = "MRN") %>%
-        
-        mutate(ClassIII.Rx = ifelse(!is.na(ClassIII.Rx.OMR.Name), 1, ClassIII.Rx)) %>%
+combine_rx_list <- list(
+    main.df2,
+    classIII.df,
+    classIc.df,
+    acei.df,
+    amiodarone.df,
+    bb.df,
+    classIII.OMR.df,
+    classIc.OMR.df,
+    acei.OMR.df,
+    amiodarone.OMR.df,
+    bb.OMR.df
+)
 
-        left_join(classIc.df, by = "MRN") %>%
-        
-        left_join(classIc.OMR.df, by = "MRN") %>%
-        
-        mutate(ClassIc.Rx = ifelse(!is.na(ClassIc.Rx.OMR.Name), 1, ClassIc.Rx)) %>%
-        
-        left_join(acei.df, by = "MRN") %>%
-        
-        left_join(acei.OMR.df, by = "MRN") %>%
-        
-        mutate(ACEI.Rx = ifelse(!is.na(ACEI.Rx.OMR.Name), 1, ACEI.Rx)) %>%
-        
-        left_join(amiodarone.df, by = "MRN") %>%
-        
-        left_join(amiodarone.OMR.df, by = "MRN") %>%
-        
-        mutate(Amiodarone.Rx = ifelse(!is.na(Amiodarone.Rx.OMR.Name), 1, Amiodarone.Rx)) %>%
-        
-        left_join(bb.df, by = "MRN") %>%
-        
-        left_join(bb.OMR.df, by = "MRN") %>%
-        
-        mutate(BB.Rx = ifelse(!is.na(BB.Rx.OMR.Name), 1, BB.Rx))
+
+main.df3 <- purrr::reduce(combine_rx_list, left_join, by = "MRN")
 
 ```
 
 ## Lab data
+
+```{r}
+read_lab_data <- function(file_name, lab){
+    .lab <- enquo(lab)
+    .lab_date <- paste0(quo_name(.lab), ".lab.Date")
+    .lab_value <- paste0(quo_name(.lab), ".lab.Value")
+    
+    .path <- get_path(file_name = file_name,
+                      sub_folder = "Lab")
+    
+    .lab_data <- read.csv(.path,
+                          stringsAsFactors = FALSE,
+                          na.strings = c(""," ","  ", "NA", "N/A")
+                          )
+    
+    .formatted_data <- .lab_data %>% 
+        rename(MRN = Duke.MRN,
+               !!.lab_date := Specimen.Collection.Date,
+               !!.lab_value := Text.Result) %>% 
+        mutate()
+}
+```
+
 
 ```{r}
 read.lab.data <- function(filepath, lab) {
