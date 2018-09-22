@@ -1,6 +1,6 @@
 PROMISE
 ================
-2018-09-20
+2018-09-22
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
 Installation
@@ -13,11 +13,18 @@ You can install promise from github with:
 devtools::install_github("dloewenstein/promise")
 ```
 
+You can install promise from Anaconda.org with:
+
+``` shell
+conda install -c dloewenstein r-promise
+```
+
 Example
 -------
 
-This is a basic example which shows you how to solve a common problem:
+In R
 
 ``` r
-## basic example code
+library("promise")
+data(promise)
 ```

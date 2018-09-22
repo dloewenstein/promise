@@ -1,4 +1,4 @@
-#' ECG, Echocardiographic and demographic data for 95,000 patients
+#' ECG, Echocardiographic and demographic data for 93,000 patients
 #'
 #' A dataset containing matched electrocardiographic and echocardiographic data
 #' for Duke University Hospital patients between the years 2002 - 2017 and corresponding demographics.

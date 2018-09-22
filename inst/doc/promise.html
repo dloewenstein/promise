@@ -12,7 +12,7 @@
 
 <meta name="author" content="Daniel Loewenstein" />
 
-<meta name="date" content="2018-09-20" />
+<meta name="date" content="2018-09-22" />
 
 <title>Prevalence of heart failure and medical comorbidities in different electrocardiographic intraventricular conduction abnormalities compared to normal conduction</title>
 
@@ -70,24 +70,37 @@ code > span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Inf
 
 <h1 class="title toc-ignore">Prevalence of heart failure and medical comorbidities in different electrocardiographic intraventricular conduction abnormalities compared to normal conduction</h1>
 <h4 class="author"><em>Daniel Loewenstein</em></h4>
-<h4 class="date"><em>2018-09-20</em></h4>
+<h4 class="date"><em>2018-09-22</em></h4>
 
 
 
+<div id="summary" class="section level2">
+<h2>Summary</h2>
+<div id="date" class="section level3">
+<h3>Date</h3>
+<ul>
+<li>Data extraction occured 2017-03-31 from <a href="https://www.ctsi.duke.edu/node/908">Deduce</a></li>
+<li><a href="https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3063322/">reference</a></li>
+</ul>
+</div>
+<div id="exclusions" class="section level3">
+<h3>Exclusions</h3>
+<ul>
+<li>Exclude all patients with an endpointdate less than 24 hours after ecgdate.</li>
+<li>Exlucde all entries without EF data</li>
+</ul>
+</div>
+</div>
 <div id="setup" class="section level2">
 <h2>Setup</h2>
 <p>First we load all the needed packages.</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">library</span>(dplyr)
-<span class="kw">library</span>(readr)
-<span class="kw">library</span>(lazyeval)
 <span class="kw">library</span>(stringr)
-<span class="kw">library</span>(xml2)
-<span class="kw">library</span>(purrr)
-<span class="kw">library</span>(data.table)</code></pre></div>
+<span class="kw">library</span>(purrr)</code></pre></div>
 <p>All the .xml ECG files have already been processed. You can read about the process <a href="LP-xml_to_dataframe.html">here</a></p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">ecg &lt;-<span class="st"> </span><span class="kw">readRDS</span>(<span class="kw">file.path</span>(DataPackageR<span class="op">::</span><span class="kw">project_path</span>(), <span class="st">&quot;data-raw/promise_xml_ecg-GEN.rds&quot;</span>))</code></pre></div>
 <p>This is used for setting up a relative path during the package build.</p>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">data_dir &lt;-<span class="st"> &quot;/mnt/c/Users/Daniel/Cloudstation/Documents/Research/Projects/POHMECG/data/&quot;</span></code></pre></div>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">data_dir &lt;-<span class="st"> </span>DataPackageR<span class="op">::</span><span class="kw">project_data_path</span>()</code></pre></div>
 </div>
 <div id="echo-data" class="section level2">
 <h2>Echo data</h2>
@@ -95,11 +108,10 @@ code > span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Inf
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co">#Reads echo data</span>
 echo &lt;-<span class="st"> </span><span class="kw">read.csv</span>(<span class="kw">file.path</span>(data_dir, <span class="st">&quot;all_echoes.csv&quot;</span>), 
                  <span class="dt">stringsAsFactors =</span> <span class="ot">FALSE</span>,
-                <span class="dt">na.strings=</span><span class="kw">c</span>(<span class="st">&quot;&quot;</span>,<span class="st">&quot; &quot;</span>,<span class="st">&quot;  &quot;</span>, <span class="st">&quot;NA&quot;</span>, <span class="st">&quot;N/A&quot;</span>),
+                <span class="dt">na.strings =</span> <span class="kw">c</span>(<span class="st">&quot;&quot;</span>,<span class="st">&quot; &quot;</span>,<span class="st">&quot;  &quot;</span>, <span class="st">&quot;NA&quot;</span>, <span class="st">&quot;N/A&quot;</span>),
                 <span class="dt">strip.white =</span> <span class="ot">TRUE</span>)</code></pre></div>
 <p>Since all the data are exported from the Deduce database, Duke University Medical Center, Durham, NC, USA we noticed that it’s important to set the timezone (tz) explicitly, since some processing afterwards have been done outside NC and the default R settings is to use the local timezone.</p>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co">#Renames Echo.MRN to MRN</span>
-echo &lt;-<span class="st"> </span>echo <span class="op">%&gt;%</span>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">echo &lt;-<span class="st"> </span>echo <span class="op">%&gt;%</span>
 <span class="st">        </span><span class="kw">rename</span>(<span class="dt">MRN =</span> log_history, 
                <span class="dt">EF =</span> acq_efclosest,
                <span class="dt">PAP.mm.hg =</span> acq_rvsyspress,
@@ -109,60 +121,96 @@ echo &lt;-<span class="st"> </span>echo <span class="op">%&gt;%</span>
                <span class="dt">MR.severity =</span> acq_mr,
                <span class="dt">echo_indication =</span> log_sp1) <span class="op">%&gt;%</span>
 <span class="st">        </span>
-<span class="st">        </span><span class="kw">mutate</span>(<span class="dt">Echo.date =</span> <span class="kw">as.POSIXct</span>(log_dos, <span class="dt">format =</span> <span class="st">&quot;%m/%d/%Y %H:%M:%S&quot;</span>, <span class="dt">tz =</span> <span class="st">&quot;America/New_York&quot;</span>),
+<span class="st">        </span><span class="kw">mutate</span>(<span class="dt">Echo.date =</span> <span class="kw">as.POSIXct</span>(log_dos, 
+                                      <span class="dt">format =</span> <span class="st">&quot;%m/%d/%Y %H:%M:%S&quot;</span>, 
+                                      <span class="dt">tz =</span> <span class="st">&quot;America/New_York&quot;</span>),
                <span class="dt">PAP.mm.hg =</span> <span class="kw">as.numeric</span>(PAP.mm.hg),
-               
-               <span class="co">#had to remove characters to be able to convert to numericals</span>
-               <span class="dt">EF.x =</span> <span class="kw">as.numeric</span>(<span class="kw">str_replace_all</span>(EF, <span class="kw">c</span>(<span class="st">&quot;&lt;&quot;</span> =<span class="st"> &quot;&quot;</span>, <span class="st">&quot;&gt;&quot;</span> =<span class="st"> &quot;&quot;</span>, <span class="st">&quot;%&quot;</span>=<span class="st"> &quot;&quot;</span>, <span class="st">&quot;=&quot;</span> =<span class="st"> &quot;&quot;</span>)))) <span class="op">%&gt;%</span>
-<span class="st">        </span>
-<span class="st">        </span><span class="co">#excludes all entries wihthout EF</span>
-<span class="st">        </span><span class="kw">filter</span>(<span class="op">!</span><span class="kw">is.na</span>(EF.x)) <span class="op">%&gt;%</span>
-<span class="st">        </span>
+               <span class="dt">EF.x =</span> <span class="kw">as.numeric</span>(  <span class="co">#  had to remove characters to be able to convert to numericals</span>
+                   <span class="kw">str_replace_all</span>(EF, 
+                                   <span class="kw">c</span>(<span class="st">&quot;&lt;&quot;</span> =<span class="st"> &quot;&quot;</span>, <span class="st">&quot;&gt;&quot;</span> =<span class="st"> &quot;&quot;</span>, <span class="st">&quot;%&quot;</span> =<span class="st"> &quot;&quot;</span>, <span class="st">&quot;=&quot;</span> =<span class="st"> &quot;&quot;</span>)
+                                   )
+                   )
+               ) <span class="op">%&gt;%</span>
+<span class="st">        </span><span class="kw">filter</span>(<span class="op">!</span><span class="kw">is.na</span>(EF.x)) <span class="op">%&gt;%</span><span class="st">  </span><span class="co">#  excludes all entries wihthout EF</span>
 <span class="st">        </span><span class="kw">mutate_at</span>(<span class="kw">c</span>(<span class="st">&quot;AS.severity&quot;</span>,
                     <span class="st">&quot;MS.severity&quot;</span>,
                     <span class="st">&quot;AR.severity&quot;</span>,
                     <span class="st">&quot;MR.severity&quot;</span>), as.factor) <span class="op">%&gt;%</span>
-<span class="st">        </span>
-<span class="st">        </span><span class="kw">select</span>(MRN, Echo.date, EF, EF.x, AS.severity, MS.severity, AR.severity, MR.severity, PAP.mm.hg, echo_indication)</code></pre></div>
+<span class="st">        </span><span class="kw">select</span>(MRN, 
+               Echo.date, 
+               EF, 
+               EF.x, 
+               AS.severity, 
+               MS.severity, 
+               AR.severity, 
+               MR.severity, 
+               PAP.mm.hg, 
+               echo_indication)</code></pre></div>
 </div>
 <div id="ecg-and-echo-matching" class="section level2">
 <h2>ECG and ECHO matching</h2>
 <p>We start by joining all patients by their Medical Record Number (MRN). We filter for all observations with less than or equal to 30 days, between the date of the echo and the date of the ecg. Among these we filter for the ones closest in time.</p>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co">#Joins echo and ecg by MRN variable</span>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co"># Joins echo and ecg by MRN variable</span>
 df &lt;-<span class="st"> </span><span class="kw">inner_join</span>(echo, ecg, <span class="dt">by =</span> <span class="st">&quot;MRN&quot;</span>)
 
 
 df &lt;-<span class="st"> </span>df <span class="op">%&gt;%</span>
-<span class="st">        </span><span class="co">#group by MRN and echo date</span>
+<span class="st">        </span><span class="co"># group by MRN and echo date</span>
 <span class="st">        </span><span class="kw">group_by</span>(MRN) <span class="op">%&gt;%</span>
 
-<span class="st">        </span><span class="co">#keeps observations with a difference between echo date and ecg date of 30 days or below</span>
-<span class="st">        </span><span class="kw">filter</span>(<span class="kw">abs</span>(<span class="kw">as.numeric</span>(<span class="kw">difftime</span>(Echo.date,ECGDate, <span class="dt">units =</span> <span class="st">&quot;days&quot;</span>))) <span class="op">&lt;=</span><span class="st"> </span><span class="dv">30</span>) <span class="op">%&gt;%</span>
+<span class="st">        </span><span class="co"># keeps observations with a difference between echo date and ecg date of 30 days or below</span>
+<span class="st">        </span><span class="kw">filter</span>(
+            <span class="kw">abs</span>(
+                <span class="kw">as.numeric</span>(
+                    <span class="kw">difftime</span>(Echo.date, 
+                             ECGDate, 
+                             <span class="dt">units =</span> <span class="st">&quot;days&quot;</span>)
+                    )
+                )
+            <span class="op">&lt;=</span><span class="st"> </span><span class="dv">30</span>
+            ) <span class="op">%&gt;%</span>
 <span class="st">        </span>
-<span class="st">        </span><span class="co">#filters by echodate for the observations closest in time (in seconds)</span>
-<span class="st">        </span><span class="kw">filter</span>(<span class="kw">abs</span>(<span class="kw">as.numeric</span>(<span class="kw">difftime</span>(Echo.date,ECGDate, <span class="dt">units =</span> <span class="st">&quot;secs&quot;</span>))) <span class="op">==</span><span class="st"> </span><span class="kw">min</span>(<span class="kw">abs</span>(<span class="kw">as.numeric</span>(<span class="kw">difftime</span>(Echo.date, ECGDate, <span class="dt">units =</span> <span class="st">&quot;secs&quot;</span>))))) <span class="op">%&gt;%</span>
+<span class="st">        </span><span class="co"># filters by echo exam and ecg exam closest in time (in seconds)</span>
+<span class="st">        </span><span class="kw">filter</span>(
+            <span class="kw">abs</span>(
+                <span class="kw">as.numeric</span>(
+                    <span class="kw">difftime</span>(Echo.date,
+                             ECGDate, 
+                             <span class="dt">units =</span> <span class="st">&quot;secs&quot;</span>)
+                    )
+                ) 
+            <span class="op">==</span><span class="st"> </span><span class="kw">min</span>(
+                <span class="kw">abs</span>(
+                    <span class="kw">as.numeric</span>(
+                        <span class="kw">difftime</span>(Echo.date, 
+                                 ECGDate, 
+                                 <span class="dt">units =</span> <span class="st">&quot;secs&quot;</span>)
+                        )
+                    )
+                )
+            ) <span class="op">%&gt;%</span>
 <span class="st">        </span>
-<span class="st">        </span><span class="co">#removes eventual duplicates</span>
+<span class="st">        </span><span class="co"># removes eventual duplicates</span>
 <span class="st">        </span><span class="kw">unique</span>() <span class="op">%&gt;%</span>
 <span class="st">        </span>
-<span class="st">        </span><span class="co">#ungroups to be able to do next operation</span>
+<span class="st">        </span><span class="co"># ungroups to be able to do next operation</span>
 <span class="st">        </span><span class="kw">ungroup</span>() <span class="op">%&gt;%</span>
 <span class="st">        </span>
-<span class="st">        </span><span class="co">#creates a new column holding number of NA in that row</span>
+<span class="st">        </span><span class="co"># creates a new column holding number of NA in that row</span>
 <span class="st">        </span><span class="kw">mutate</span>(<span class="dt">n =</span> <span class="kw">rowSums</span>(<span class="kw">is.na</span>(.))) <span class="op">%&gt;%</span>
 <span class="st">        </span>
-<span class="st">        </span><span class="co">#group by MRN</span>
+<span class="st">        </span><span class="co"># group by MRN</span>
 <span class="st">        </span><span class="kw">group_by</span>(MRN) <span class="op">%&gt;%</span>
 <span class="st">        </span>
-<span class="st">        </span><span class="co">#within each MRN group selects the observation with the fewest numbers of NA</span>
+<span class="st">        </span><span class="co"># within each MRN group selects the observation with the fewest numbers of NA</span>
 <span class="st">        </span><span class="kw">filter</span>(n <span class="op">==</span><span class="st"> </span><span class="kw">min</span>(n)) <span class="op">%&gt;%</span>
 <span class="st">        </span>
-<span class="st">        </span><span class="co">#for each MRN, select the first entry</span>
+<span class="st">        </span><span class="co"># for each MRN, select the first entry</span>
 <span class="st">        </span><span class="kw">slice</span>(<span class="dv">1</span>) <span class="op">%&gt;%</span>
 <span class="st">        </span>
 <span class="st">        </span><span class="kw">ungroup</span>() <span class="op">%&gt;%</span>
 <span class="st">        </span>
-<span class="st">        </span><span class="co">#drops the added column with number of na's</span>
+<span class="st">        </span><span class="co"># drops the added column with number of na's</span>
 <span class="st">        </span><span class="kw">select</span>(<span class="op">-</span>n)</code></pre></div>
 <p>Some patients when performing match in Duke DEDUCE database were flagged as having gotten a new MRN. mrn.df contains a list of the old MRNs matched to the new ones. However, 135 of the old MRNs exist in the supposedly new MRNs which we think are due to that they had an ecg and echo exam both for the old MRN and the new MRN, resulting in duplicates after the old MRN gets updated to the new MRN in our dataset.</p>
 <p>Our solution to this is:</p>
@@ -170,39 +218,38 @@ df &lt;-<span class="st"> </span>df <span class="op">%&gt;%</span>
 <li>identify which MRNs exist both as old and new, exclude these</li>
 <li>update the remaining old MRNs with the new numbers for further patient data mathing which uses the updated MRNs.</li>
 </ul>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co">#Reads in updated MRN data</span>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co"># Reads in updated MRN data</span>
 mrn.df &lt;-<span class="st"> </span><span class="kw">read.csv</span>(<span class="kw">file.path</span>(data_dir, <span class="st">&quot;changedMrns.csv&quot;</span>), 
                    <span class="dt">stringsAsFactors =</span> <span class="ot">FALSE</span>,
                    <span class="dt">strip.white =</span> <span class="ot">TRUE</span>)
 
-<span class="co">#sets columnnames</span>
+<span class="co"># sets columnnames</span>
 <span class="kw">colnames</span>(mrn.df) &lt;-<span class="st"> </span><span class="kw">c</span>(<span class="st">&quot;MRN&quot;</span>, <span class="st">&quot;new.MRN&quot;</span>)</code></pre></div>
 <p>There were duplicates of the new MRN were different old MRNs had been assigned the same new MRN, all of these are removed below.</p>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co">#selects all rows in mrn.df were new.MRN is not one of the new.MRNs that</span>
-<span class="co">#are duplicated.</span>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co"># selects all rows in mrn.df were new.MRN is not one of the new.MRNs that</span>
+<span class="co"># are duplicated.</span>
 mrn.df &lt;-<span class="st"> </span>mrn.df[<span class="op">!</span>mrn.df<span class="op">$</span>new.MRN <span class="op">%in%</span><span class="st"> </span>
 <span class="st">                         </span>mrn.df[<span class="kw">duplicated</span>(mrn.df<span class="op">$</span>new.MRN),]<span class="op">$</span>new.MRN,]
 
-<span class="co">#Excludes all MRNs in df that also exist in mrn.df$new.MRN</span>
-df &lt;-<span class="st"> </span>df[<span class="op">!</span>df<span class="op">$</span>MRN <span class="op">%in%</span><span class="st"> </span>mrn.df<span class="op">$</span>new.MRN,]
+<span class="co"># Excludes all MRNs in df that also exist in mrn.df$new.MRN</span>
+df &lt;-<span class="st"> </span>df[<span class="op">!</span>df<span class="op">$</span>MRN <span class="op">%in%</span><span class="st"> </span>mrn.df<span class="op">$</span>new.MRN,]</code></pre></div>
+<p>Return all rows from df, and all columns from df and mrn.df. Rows in df with no match in mrn.df will have NA values in the new columns. If there are multiple matches between df and mrn.df, all combinations of the matches are returned.</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">df &lt;-<span class="st"> </span><span class="kw">left_join</span>(df, mrn.df, <span class="dt">by =</span> <span class="st">&quot;MRN&quot;</span>)
 
-<span class="co">#Return all rows from x, and all columns from x and y.</span>
-<span class="co">#Rows in x with no match in y will have NA values in the new columns.</span>
-<span class="co">#If there are multiple matches between x and y, all combinations of </span>
-<span class="co">#the matches are returned.</span>
-df &lt;-<span class="st"> </span><span class="kw">left_join</span>(df, mrn.df, <span class="dt">by =</span> <span class="st">&quot;MRN&quot;</span>)
-
-<span class="co">#Replaces old MRNs with new ones, dropping the newly added new.MRN column.</span>
+<span class="co"># Replaces old MRNs with new ones, dropping the newly added new.MRN column.</span>
 df &lt;-<span class="st"> </span>df <span class="op">%&gt;%</span>
-<span class="st">        </span><span class="kw">mutate</span>(<span class="dt">MRN =</span> <span class="kw">if_else</span>(<span class="op">!</span><span class="kw">is.na</span>(new.MRN), new.MRN, MRN)) <span class="op">%&gt;%</span>
-<span class="st">        </span><span class="kw">select</span>(<span class="op">-</span><span class="st"> </span>new.MRN)</code></pre></div>
+<span class="st">        </span><span class="kw">mutate</span>(<span class="dt">MRN =</span> <span class="kw">if_else</span>(<span class="op">!</span><span class="kw">is.na</span>(new.MRN),
+                             <span class="dt">true =</span> new.MRN, 
+                             <span class="dt">false =</span> MRN)
+               ) <span class="op">%&gt;%</span>
+<span class="st">        </span><span class="kw">select</span>(<span class="op">-</span>new.MRN)</code></pre></div>
 </div>
 <div id="demographics" class="section level2">
 <h2>Demographics</h2>
 <p>Reading in demographics datas regarding DOB, gender, race and date of death</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">demo.df &lt;-<span class="st"> </span><span class="kw">read.csv</span>(<span class="kw">file.path</span>(data_dir, <span class="st">&quot;DOB_GENDER_Race_DOD.csv&quot;</span>),
                     <span class="dt">stringsAsFactors =</span> <span class="ot">FALSE</span>,
-                    <span class="dt">na.strings=</span><span class="kw">c</span>(<span class="st">&quot;&quot;</span>,<span class="st">&quot; &quot;</span>,<span class="st">&quot;  &quot;</span>, <span class="st">&quot;NA&quot;</span>, <span class="st">&quot;N/A&quot;</span>),
+                    <span class="dt">na.strings =</span> <span class="kw">c</span>(<span class="st">&quot;&quot;</span>,<span class="st">&quot; &quot;</span>,<span class="st">&quot;  &quot;</span>, <span class="st">&quot;NA&quot;</span>, <span class="st">&quot;N/A&quot;</span>),
                     <span class="dt">strip.white =</span> <span class="ot">TRUE</span>)</code></pre></div>
 <p>Renaming column variables, setting date columns in POSIXct format, (POSIXlt uses a list format, while ct uses time in seconds from the origin, which is more memory effective), converting ordinal variables to factors.</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">demo.df &lt;-<span class="st"> </span>demo.df <span class="op">%&gt;%</span>
@@ -210,11 +257,13 @@ df &lt;-<span class="st"> </span>df <span class="op">%&gt;%</span>
                <span class="dt">Gender =</span> <span class="kw">as.factor</span>(Patient.Gender), 
                <span class="dt">Race =</span> <span class="kw">as.factor</span>(Patient.Race), 
                <span class="dt">DOB =</span> <span class="kw">as.POSIXct</span>(Patient.Date.of.Birth, 
-                                <span class="dt">format =</span> <span class="st">&quot;%m/%d/%Y %H:%M:%S&quot;</span>, <span class="dt">tz =</span> <span class="st">&quot;America/New_York&quot;</span>),
-               <span class="dt">Age.at.ECG =</span> <span class="kw">as.integer</span>(<span class="dv">0</span>), <span class="co">#for future use</span>
+                                <span class="dt">format =</span> <span class="st">&quot;%m/%d/%Y %H:%M:%S&quot;</span>, 
+                                <span class="dt">tz =</span> <span class="st">&quot;America/New_York&quot;</span>),
+               <span class="dt">Age.at.ECG =</span> <span class="kw">as.integer</span>(<span class="dv">0</span>), <span class="co"># for future use</span>
                <span class="dt">Death.index =</span> <span class="kw">as.factor</span>(Patient.Death.Indicator),
                <span class="dt">DOD =</span> <span class="kw">as.POSIXct</span>(Patient.Death.Date, 
-                                <span class="dt">format =</span> <span class="st">&quot;%m/%d/%Y %H:%M:%S&quot;</span>, <span class="dt">tz =</span> <span class="st">&quot;America/New_York&quot;</span>))</code></pre></div>
+                                <span class="dt">format =</span> <span class="st">&quot;%m/%d/%Y %H:%M:%S&quot;</span>, 
+                                <span class="dt">tz =</span> <span class="st">&quot;America/New_York&quot;</span>))</code></pre></div>
 <p>Let’s clean up the Race factor levels a bit.</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">levels</span>(demo.df<span class="op">$</span>Race) &lt;-<span class="st"> </span><span class="kw">list</span>(<span class="st">&quot;Mix&quot;</span>              =<span class="st"> </span><span class="kw">c</span>(<span class="st">&quot;2 OR MORE RACES&quot;</span>, 
                                                     <span class="st">&quot;MULTIRACIAL&quot;</span>),
@@ -236,215 +285,165 @@ df &lt;-<span class="st"> </span>df <span class="op">%&gt;%</span>
 <p>This way of merging returns all rows from df where there are matching values in demo.df, and all columns from df and demo.df. If there are multiple matches between df and demo.df, all combination of the matches are returned.</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">main.df &lt;-<span class="st"> </span><span class="kw">inner_join</span>(df, demo.df, <span class="dt">by =</span> <span class="st">&quot;MRN&quot;</span>) <span class="op">%&gt;%</span>
 <span class="st">        </span>
-<span class="st">        </span><span class="co">#we need the patient age at the time of the ecg</span>
-<span class="st">        </span><span class="kw">mutate</span>(<span class="dt">Age.at.ECG =</span> <span class="kw">round</span>(<span class="kw">as.integer</span>(<span class="kw">difftime</span>(ECGDate, 
-                                                      DOB, 
-                                                      <span class="dt">units =</span> <span class="st">&quot;days&quot;</span>))<span class="op">/</span><span class="fl">365.25</span>))</code></pre></div>
-<p>Read in the Cardiac Resynchronization Therapy (CRT) data.</p>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">crt.df &lt;-<span class="st"> </span><span class="kw">read.csv</span>(<span class="kw">file.path</span>(data_dir, <span class="st">&quot;Dx/CRT Codes.csv&quot;</span>), 
+<span class="st">        </span><span class="co"># we need the patient age at the time of the ecg</span>
+<span class="st">        </span><span class="kw">mutate</span>(<span class="dt">Age.at.ECG =</span> <span class="kw">round</span>(
+            <span class="kw">as.integer</span>(
+                <span class="kw">difftime</span>(ECGDate,
+                         DOB,
+                         <span class="dt">units =</span> <span class="st">&quot;days&quot;</span>)
+                )
+            <span class="op">/</span><span class="st"> </span><span class="fl">365.25</span>)
+            )</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co">#' Get dx file path</span>
+<span class="co">#'</span>
+<span class="co">#' @param file_name A \code{character}</span>
+<span class="co">#'</span>
+<span class="co">#' @return</span>
+<span class="co">#'</span>
+<span class="co">#' @examples</span>
+get_path &lt;-<span class="st"> </span><span class="cf">function</span>(file_name, sub_folder){
+    path &lt;-<span class="st"> </span><span class="kw">file.path</span>(data_dir, <span class="kw">paste0</span>(sub_folder, <span class="st">&quot;/&quot;</span>, file_name))
+}</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co">#' Import and format diagnosis data</span>
+<span class="co">#'</span>
+<span class="co">#' @param file_path \code{character}</span>
+<span class="co">#' @param abb_dx variable name, unquoted</span>
+<span class="co">#'</span>
+<span class="co">#' @return</span>
+<span class="co">#'</span>
+<span class="co">#' @examples</span>
+read_diagnosis_data &lt;-<span class="st"> </span><span class="cf">function</span>(file_name, abb_dx, <span class="dt">type_data =</span> <span class="kw">c</span>(<span class="st">&quot;diagnosis&quot;</span>, <span class="st">&quot;procedure&quot;</span>)) {
+    
+    .sub_folder &lt;-<span class="st"> &quot;Dx&quot;</span>
+    .file_path &lt;-<span class="st"> </span><span class="kw">get_path</span>(<span class="dt">file_name =</span> file_name,
+                            <span class="dt">sub_folder =</span> .sub_folder)
+    .abb_dx &lt;-<span class="st"> </span><span class="kw">enquo</span>(abb_dx)
+    .dx_code &lt;-<span class="st"> </span><span class="kw">paste0</span>(<span class="kw">quo_name</span>(.abb_dx), <span class="st">&quot;.Code&quot;</span>)
+    .dx_date &lt;-<span class="st"> </span><span class="kw">paste0</span>(<span class="kw">quo_name</span>(.abb_dx), <span class="st">&quot;.Date&quot;</span>)
+    
+    .raw_data &lt;-<span class="st"> </span><span class="kw">read.csv</span>(
+        .file_path,
+        <span class="dt">stringsAsFactors =</span> <span class="ot">FALSE</span>,
+        <span class="dt">na.strings =</span> <span class="kw">c</span>(<span class="st">&quot;&quot;</span>,<span class="st">&quot; &quot;</span>,<span class="st">&quot;  &quot;</span>, <span class="st">&quot;NA&quot;</span>, <span class="st">&quot;N/A&quot;</span>)
+        )
+    
+    <span class="cf">if</span> (type_data[<span class="dv">1</span>] <span class="op">==</span><span class="st"> &quot;diagnosis&quot;</span>) {
+    .formatted_data &lt;-<span class="st"> </span>.raw_data <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">        </span><span class="kw">rename</span>(<span class="dt">MRN         =</span> Duke.MRN,
+               <span class="op">!!</span>.dx_code <span class="op">:</span><span class="er">=</span><span class="st"> </span>ICD.Diagnosis.Code,
+               <span class="op">!!</span>.dx_date <span class="op">:</span><span class="er">=</span><span class="st"> </span>Diagnosis.Date) <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">        </span><span class="kw">mutate</span>(<span class="op">!!</span>.dx_date <span class="op">:</span><span class="er">=</span><span class="st"> </span><span class="kw">as.POSIXct</span>(.data[[<span class="op">!!</span>.dx_date]],
+                                     <span class="dt">format =</span> <span class="st">&quot;%m/%d/%Y %H:%M:%S&quot;</span>,
+                                     <span class="dt">tz     =</span> <span class="st">&quot;America/New_York&quot;</span>)
+               )
+    } <span class="cf">else</span> <span class="cf">if</span> (type_data[<span class="dv">1</span>] <span class="op">==</span><span class="st"> &quot;procedure&quot;</span>) {
+            .formatted_data &lt;-<span class="st"> </span>.raw_data <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">        </span><span class="kw">rename</span>(<span class="dt">MRN         =</span> Duke.MRN,
+               <span class="op">!!</span>.dx_code <span class="op">:</span><span class="er">=</span><span class="st"> </span>ICD.Procedure.Code,
+               <span class="op">!!</span>.dx_date <span class="op">:</span><span class="er">=</span><span class="st"> </span>Procedure.Date) <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">        </span><span class="kw">mutate</span>(<span class="op">!!</span>.dx_date <span class="op">:</span><span class="er">=</span><span class="st"> </span><span class="kw">as.POSIXct</span>(.data[[<span class="op">!!</span>.dx_date]],
+                                     <span class="dt">format =</span> <span class="st">&quot;%m/%d/%Y %H:%M:%S&quot;</span>,
+                                     <span class="dt">tz     =</span> <span class="st">&quot;America/New_York&quot;</span>),
+               <span class="op">!!</span><span class="kw">quo_name</span>(.abb_dx) <span class="op">:</span><span class="er">=</span><span class="st"> </span><span class="kw">as.factor</span>(<span class="dv">1</span>)) <span class="op">%&gt;%</span>
+<span class="st">                </span><span class="kw">group_by</span>(MRN) <span class="op">%&gt;%</span>
+<span class="st">                </span><span class="kw">filter</span>(<span class="op">!!</span>.dx_date <span class="op">==</span><span class="st"> </span><span class="kw">min</span>(<span class="op">!!</span>.dx_date)) <span class="op">%&gt;%</span>
+<span class="st">                </span><span class="kw">slice</span>(<span class="dv">1</span>) <span class="op">%&gt;%</span>
+<span class="st">                </span><span class="kw">ungroup</span>()
+    }
+}</code></pre></div>
+<div id="procedure-data" class="section level3">
+<h3>Procedure data</h3>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">crt.df &lt;-<span class="st"> </span><span class="kw">read.csv</span>(<span class="kw">get_path</span>(<span class="st">&quot;CRT Codes.csv&quot;</span>, <span class="st">&quot;Dx&quot;</span>), 
                    <span class="dt">stringsAsFactors =</span> <span class="ot">FALSE</span>,
-                   <span class="dt">na.strings=</span><span class="kw">c</span>(<span class="st">&quot;&quot;</span>,<span class="st">&quot; &quot;</span>,<span class="st">&quot;  &quot;</span>, <span class="st">&quot;NA&quot;</span>, <span class="st">&quot;N/A&quot;</span>))
+                   <span class="dt">na.strings =</span> <span class="kw">c</span>(<span class="st">&quot;&quot;</span>,<span class="st">&quot; &quot;</span>,<span class="st">&quot;  &quot;</span>, <span class="st">&quot;NA&quot;</span>, <span class="st">&quot;N/A&quot;</span>)
+                   )
 
 crt.df &lt;-<span class="st"> </span>crt.df <span class="op">%&gt;%</span>
 <span class="st">        </span><span class="kw">rename</span>(<span class="dt">MRN =</span> Duke.MRN, 
                <span class="dt">CRT.Date =</span> ICD.CPT.Procedure.Date) <span class="op">%&gt;%</span>
 <span class="st">        </span><span class="kw">mutate</span>(<span class="dt">CRT.Date =</span> <span class="kw">as.POSIXct</span>(CRT.Date, 
-                                    <span class="dt">format =</span> <span class="st">&quot;%m/%d/%Y %H:%M:%S&quot;</span>, <span class="dt">tz =</span> <span class="st">&quot;America/New_York&quot;</span>),
-               <span class="dt">CRT =</span> <span class="kw">as.factor</span>(<span class="dv">1</span>),
-               <span class="dt">Censor =</span> <span class="ot">NA</span>) <span class="op">%&gt;%</span>
+                                    <span class="dt">format =</span> <span class="st">&quot;%m/%d/%Y %H:%M:%S&quot;</span>, 
+                                    <span class="dt">tz =</span> <span class="st">&quot;America/New_York&quot;</span>),
+               <span class="dt">CRT =</span> <span class="kw">as.factor</span>(<span class="dv">1</span>)
+               ) <span class="op">%&gt;%</span>
 <span class="st">        </span><span class="kw">group_by</span>(MRN) <span class="op">%&gt;%</span>
 <span class="st">        </span><span class="kw">filter</span>(CRT.Date <span class="op">==</span><span class="st"> </span><span class="kw">min</span>(CRT.Date)) <span class="op">%&gt;%</span>
 <span class="st">        </span><span class="kw">slice</span>(<span class="dv">1</span>) <span class="op">%&gt;%</span>
 <span class="st">        </span><span class="kw">ungroup</span>()</code></pre></div>
-<p>Read in LVAD data</p>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">lvad.df &lt;-<span class="st"> </span><span class="kw">read.csv</span>(<span class="kw">file.path</span>(data_dir, <span class="st">&quot;Dx/LVAD Codes.csv&quot;</span>),
-                    <span class="dt">stringsAsFactors =</span> <span class="ot">FALSE</span>,
-                    <span class="dt">na.strings=</span><span class="kw">c</span>(<span class="st">&quot;&quot;</span>,<span class="st">&quot; &quot;</span>,<span class="st">&quot;  &quot;</span>, <span class="st">&quot;NA&quot;</span>, <span class="st">&quot;N/A&quot;</span>))
-
-lvad.df &lt;-<span class="st"> </span>lvad.df <span class="op">%&gt;%</span>
-<span class="st">        </span><span class="kw">rename</span>(<span class="dt">MRN =</span> Duke.MRN,
-               <span class="dt">LVAD.Code =</span> ICD.Procedure.Code,
-               <span class="dt">LVAD.Date =</span> Procedure.Date) <span class="op">%&gt;%</span>
-<span class="st">        </span><span class="kw">mutate</span>(<span class="dt">LVAD.Date =</span> <span class="kw">as.POSIXct</span>(LVAD.Date, 
-                                                <span class="dt">format =</span> <span class="st">&quot;%m/%d/%Y %H:%M:%S&quot;</span>, <span class="dt">tz =</span> <span class="st">&quot;America/New_York&quot;</span>),
-               <span class="dt">LVAD =</span> <span class="kw">as.factor</span>(<span class="dv">1</span>)) <span class="op">%&gt;%</span>
-<span class="st">        </span><span class="kw">group_by</span>(MRN) <span class="op">%&gt;%</span>
-<span class="st">        </span><span class="kw">filter</span>(LVAD.Date <span class="op">==</span><span class="st"> </span><span class="kw">min</span>(LVAD.Date)) <span class="op">%&gt;%</span>
-<span class="st">        </span><span class="kw">slice</span>(<span class="dv">1</span>) <span class="op">%&gt;%</span>
-<span class="st">        </span><span class="kw">ungroup</span>()</code></pre></div>
-<p>Read in Heart transplant data</p>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">htx.df &lt;-<span class="st"> </span><span class="kw">read.csv</span>(<span class="kw">file.path</span>(data_dir, <span class="st">&quot;Dx/Hearttransplant Codes.csv&quot;</span>),
-                    <span class="dt">stringsAsFactors =</span> <span class="ot">FALSE</span>,
-                    <span class="dt">na.strings=</span><span class="kw">c</span>(<span class="st">&quot;&quot;</span>,<span class="st">&quot; &quot;</span>,<span class="st">&quot;  &quot;</span>, <span class="st">&quot;NA&quot;</span>, <span class="st">&quot;N/A&quot;</span>))
-
-htx.df &lt;-<span class="st"> </span>htx.df <span class="op">%&gt;%</span>
-<span class="st">        </span><span class="kw">rename</span>(<span class="dt">MRN =</span> Duke.MRN, 
-               <span class="dt">HTx.Code =</span> ICD.Procedure.Code,
-               <span class="dt">HTx.Date =</span> Procedure.Date) <span class="op">%&gt;%</span>
-<span class="st">        </span><span class="kw">mutate</span>(<span class="dt">HTx.Date =</span> <span class="kw">as.POSIXct</span>(HTx.Date, 
-                                                <span class="dt">format =</span> <span class="st">&quot;%m/%d/%Y %H:%M:%S&quot;</span>, <span class="dt">tz =</span> <span class="st">&quot;America/New_York&quot;</span>),
-               <span class="dt">HTx =</span> <span class="kw">as.factor</span>(<span class="dv">1</span>)) <span class="op">%&gt;%</span>
-<span class="st">  </span><span class="kw">group_by</span>(MRN) <span class="op">%&gt;%</span>
-<span class="st">  </span><span class="kw">filter</span>(HTx.Date <span class="op">==</span><span class="st"> </span><span class="kw">min</span>(HTx.Date)) <span class="op">%&gt;%</span>
-<span class="st">  </span><span class="kw">slice</span>(<span class="dv">1</span>) <span class="op">%&gt;%</span>
-<span class="st">  </span><span class="kw">ungroup</span>()</code></pre></div>
-<p>Read in heart failure data.</p>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co">#Read heart failure data</span>
-hf.df &lt;-<span class="st"> </span><span class="kw">read.csv</span>(<span class="kw">file.path</span>(data_dir, <span class="st">&quot;Dx/HF DX.csv&quot;</span>), 
-                  <span class="dt">stringsAsFactors =</span> <span class="ot">FALSE</span>,
-                  <span class="dt">na.strings=</span><span class="kw">c</span>(<span class="st">&quot;&quot;</span>,<span class="st">&quot; &quot;</span>,<span class="st">&quot;  &quot;</span>, <span class="st">&quot;NA&quot;</span>, <span class="st">&quot;N/A&quot;</span>))
-
-<span class="co">#Renames HF variables</span>
-hf.df &lt;-<span class="st"> </span>hf.df <span class="op">%&gt;%</span>
-<span class="st">        </span><span class="kw">rename</span>(<span class="dt">MRN =</span> Duke.MRN, 
-               <span class="dt">HF.Code =</span> ICD.Diagnosis.Code,
-               <span class="dt">HF.Date =</span> Diagnosis.Date) <span class="op">%&gt;%</span>
-<span class="st">        </span><span class="kw">mutate</span>(<span class="dt">HF.Date =</span> <span class="kw">as.POSIXct</span>(HF.Date, <span class="dt">format =</span> <span class="st">&quot;%m/%d/%Y %H:%M:%S&quot;</span>, <span class="dt">tz =</span> <span class="st">&quot;America/New_York&quot;</span>))</code></pre></div>
-<p>Read in cad data.</p>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co">#Read CAD data</span>
-cad.df &lt;-<span class="st"> </span><span class="kw">read.csv</span>(<span class="kw">file.path</span>(data_dir, <span class="st">&quot;Dx/CAD DX.csv&quot;</span>), 
-                   <span class="dt">stringsAsFactors =</span> <span class="ot">FALSE</span>,
-                   <span class="dt">na.strings=</span><span class="kw">c</span>(<span class="st">&quot;&quot;</span>,<span class="st">&quot; &quot;</span>,<span class="st">&quot;  &quot;</span>, <span class="st">&quot;NA&quot;</span>, <span class="st">&quot;N/A&quot;</span>))
-
-<span class="co">#Renames CAD variables</span>
-cad.df &lt;-<span class="st"> </span>cad.df <span class="op">%&gt;%</span>
-<span class="st">        </span><span class="kw">rename</span>(<span class="dt">MRN =</span> Duke.MRN, 
-               <span class="dt">CAD.Code =</span> ICD.Diagnosis.Code, 
-               <span class="dt">CAD.Date =</span> Diagnosis.Date) <span class="op">%&gt;%</span>
-<span class="st">        </span><span class="kw">mutate</span>(<span class="dt">CAD.Date =</span> <span class="kw">as.POSIXct</span>(CAD.Date, <span class="dt">format =</span> <span class="st">&quot;%m/%d/%Y %H:%M:%S&quot;</span>, <span class="dt">tz =</span> <span class="st">&quot;America/New_York&quot;</span>))</code></pre></div>
-<p>Read in OSA data.</p>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">osa.df &lt;-<span class="st"> </span><span class="kw">read.csv</span>(<span class="kw">file.path</span>(data_dir, <span class="st">&quot;Dx/OSA DX.csv&quot;</span>), 
-                   <span class="dt">stringsAsFactors =</span> <span class="ot">FALSE</span>,
-                   <span class="dt">na.strings=</span><span class="kw">c</span>(<span class="st">&quot;&quot;</span>,<span class="st">&quot; &quot;</span>,<span class="st">&quot;  &quot;</span>, <span class="st">&quot;NA&quot;</span>, <span class="st">&quot;N/A&quot;</span>))
-
-osa.df &lt;-<span class="st"> </span>osa.df <span class="op">%&gt;%</span>
-<span class="st">        </span><span class="kw">rename</span>(<span class="dt">MRN =</span> Duke.MRN, 
-               <span class="dt">OSA.Code =</span> ICD.Diagnosis.Code, 
-               <span class="dt">OSA.Date =</span> Diagnosis.Date) <span class="op">%&gt;%</span>
-<span class="st">        </span><span class="kw">mutate</span>(<span class="dt">OSA.Date =</span> <span class="kw">as.POSIXct</span>(OSA.Date, <span class="dt">format =</span> <span class="st">&quot;%m/%d/%Y %H:%M:%S&quot;</span>, <span class="dt">tz =</span> <span class="st">&quot;America/New_York&quot;</span>))</code></pre></div>
-<p>Read in CHD data.</p>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">chd.df &lt;-<span class="st"> </span><span class="kw">read.csv</span>(<span class="kw">file.path</span>(data_dir, <span class="st">&quot;Dx/CHD DX.csv&quot;</span>), 
-                   <span class="dt">stringsAsFactors =</span> <span class="ot">FALSE</span>,
-                   <span class="dt">na.strings=</span><span class="kw">c</span>(<span class="st">&quot;&quot;</span>,<span class="st">&quot; &quot;</span>,<span class="st">&quot;  &quot;</span>, <span class="st">&quot;NA&quot;</span>, <span class="st">&quot;N/A&quot;</span>))
-
-chd.df &lt;-<span class="st"> </span>chd.df <span class="op">%&gt;%</span>
-<span class="st">        </span><span class="kw">rename</span>(<span class="dt">MRN =</span> Duke.MRN, 
-               <span class="dt">CHD.Code =</span> ICD.Diagnosis.Code, 
-               <span class="dt">CHD.Date =</span> Diagnosis.Date) <span class="op">%&gt;%</span>
-<span class="st">        </span><span class="kw">mutate</span>(<span class="dt">CHD.Date =</span> <span class="kw">as.POSIXct</span>(CHD.Date, <span class="dt">format =</span> <span class="st">&quot;%m/%d/%Y %H:%M:%S&quot;</span>, <span class="dt">tz =</span> <span class="st">&quot;America/New_York&quot;</span>))</code></pre></div>
-<p>Read in COPD data.</p>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">copd.df &lt;-<span class="st"> </span><span class="kw">read.csv</span>(<span class="kw">file.path</span>(data_dir, <span class="st">&quot;Dx/COPD DX.csv&quot;</span>), 
-                   <span class="dt">stringsAsFactors =</span> <span class="ot">FALSE</span>,
-                   <span class="dt">na.strings=</span><span class="kw">c</span>(<span class="st">&quot;&quot;</span>,<span class="st">&quot; &quot;</span>,<span class="st">&quot;  &quot;</span>, <span class="st">&quot;NA&quot;</span>, <span class="st">&quot;N/A&quot;</span>))
-
-copd.df &lt;-<span class="st"> </span>copd.df <span class="op">%&gt;%</span>
-<span class="st">        </span><span class="kw">rename</span>(<span class="dt">MRN =</span> Duke.MRN, 
-               <span class="dt">COPD.Code =</span> ICD.Diagnosis.Code, 
-               <span class="dt">COPD.Date =</span> Diagnosis.Date) <span class="op">%&gt;%</span>
-<span class="st">        </span><span class="kw">mutate</span>(<span class="dt">COPD.Date =</span> <span class="kw">as.POSIXct</span>(COPD.Date, <span class="dt">format =</span> <span class="st">&quot;%m/%d/%Y %H:%M:%S&quot;</span>, <span class="dt">tz =</span> <span class="st">&quot;America/New_York&quot;</span>))</code></pre></div>
-<p>Read in DM data.</p>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">dm.df &lt;-<span class="st"> </span><span class="kw">read.csv</span>(<span class="kw">file.path</span>(data_dir, <span class="st">&quot;Dx/DM DX.csv&quot;</span>), 
-                   <span class="dt">stringsAsFactors =</span> <span class="ot">FALSE</span>,
-                   <span class="dt">na.strings=</span><span class="kw">c</span>(<span class="st">&quot;&quot;</span>,<span class="st">&quot; &quot;</span>,<span class="st">&quot;  &quot;</span>, <span class="st">&quot;NA&quot;</span>, <span class="st">&quot;N/A&quot;</span>))
-
-dm.df &lt;-<span class="st"> </span>dm.df <span class="op">%&gt;%</span>
-<span class="st">        </span><span class="kw">rename</span>(<span class="dt">MRN =</span> Duke.MRN, 
-               <span class="dt">DM.Code =</span> ICD.Diagnosis.Code, 
-               <span class="dt">DM.Date =</span> Diagnosis.Date) <span class="op">%&gt;%</span>
-<span class="st">        </span><span class="kw">mutate</span>(<span class="dt">DM.Date =</span> <span class="kw">as.POSIXct</span>(DM.Date, <span class="dt">format =</span> <span class="st">&quot;%m/%d/%Y %H:%M:%S&quot;</span>, <span class="dt">tz =</span> <span class="st">&quot;America/New_York&quot;</span>))</code></pre></div>
-<p>Read in HTN data.</p>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">htn.df &lt;-<span class="st"> </span><span class="kw">read.csv</span>(<span class="kw">file.path</span>(data_dir, <span class="st">&quot;Dx/HTN DX.csv&quot;</span>), 
-                   <span class="dt">stringsAsFactors =</span> <span class="ot">FALSE</span>,
-                   <span class="dt">na.strings=</span><span class="kw">c</span>(<span class="st">&quot;&quot;</span>,<span class="st">&quot; &quot;</span>,<span class="st">&quot;  &quot;</span>, <span class="st">&quot;NA&quot;</span>, <span class="st">&quot;N/A&quot;</span>))
-
-htn.df &lt;-<span class="st"> </span>htn.df <span class="op">%&gt;%</span>
-<span class="st">        </span><span class="kw">rename</span>(<span class="dt">MRN =</span> Duke.MRN, 
-               <span class="dt">HTN.Code =</span> ICD.Diagnosis.Code, 
-               <span class="dt">HTN.Date =</span> Diagnosis.Date) <span class="op">%&gt;%</span>
-<span class="st">        </span><span class="kw">mutate</span>(<span class="dt">HTN.Date =</span> <span class="kw">as.POSIXct</span>(HTN.Date, <span class="dt">format =</span> <span class="st">&quot;%m/%d/%Y %H:%M:%S&quot;</span>, <span class="dt">tz =</span> <span class="st">&quot;America/New_York&quot;</span>))</code></pre></div>
-<p>Reading in AF data</p>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">af.df &lt;-<span class="st"> </span><span class="kw">read.csv</span>(<span class="kw">file.path</span>(data_dir, <span class="st">&quot;Dx/AF DX.csv&quot;</span>), 
-                   <span class="dt">stringsAsFactors =</span> <span class="ot">FALSE</span>,
-                   <span class="dt">na.strings=</span><span class="kw">c</span>(<span class="st">&quot;&quot;</span>,<span class="st">&quot; &quot;</span>,<span class="st">&quot;  &quot;</span>, <span class="st">&quot;NA&quot;</span>, <span class="st">&quot;N/A&quot;</span>))
-
-af.df &lt;-<span class="st"> </span>af.df <span class="op">%&gt;%</span>
-<span class="st">        </span><span class="kw">rename</span>(<span class="dt">MRN =</span> Duke.MRN, 
-               <span class="dt">AF.Code =</span> ICD.Diagnosis.Code, 
-               <span class="dt">AF.Date =</span> Diagnosis.Date) <span class="op">%&gt;%</span>
-<span class="st">        </span><span class="kw">mutate</span>(<span class="dt">AF.Date =</span> <span class="kw">as.POSIXct</span>(AF.Date, <span class="dt">format =</span> <span class="st">&quot;%m/%d/%Y %H:%M:%S&quot;</span>, <span class="dt">tz =</span> <span class="st">&quot;America/New_York&quot;</span>))</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">lvad.df &lt;-<span class="st"> </span><span class="kw">read_diagnosis_data</span>(<span class="dt">file_name =</span> <span class="st">&quot;LVAD Codes.csv&quot;</span>, <span class="dt">abb_dx =</span> LVAD, <span class="dt">type_data =</span> <span class="st">&quot;procedure&quot;</span>)
+htx.df &lt;-<span class="st"> </span><span class="kw">read_diagnosis_data</span>(<span class="dt">file_name =</span> <span class="st">&quot;Hearttransplant Codes.csv&quot;</span>, <span class="dt">abb_dx =</span> HTx, <span class="dt">type_data =</span> <span class="st">&quot;procedure&quot;</span>)</code></pre></div>
+</div>
+<div id="diagnosis-data" class="section level3">
+<h3>Diagnosis data</h3>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">af.df &lt;-<span class="st"> </span><span class="kw">read_diagnosis_data</span>(<span class="dt">file_name =</span> <span class="st">&quot;AF DX.csv&quot;</span>, <span class="dt">abb_dx =</span> AF)
+cad.df &lt;-<span class="st"> </span><span class="kw">read_diagnosis_data</span>(<span class="dt">file_name =</span> <span class="st">&quot;CAD DX.csv&quot;</span>, <span class="dt">abb_dx =</span> CAD)
+chd.df &lt;-<span class="st"> </span><span class="kw">read_diagnosis_data</span>(<span class="dt">file_name =</span> <span class="st">&quot;CHD DX.csv&quot;</span>, <span class="dt">abb_dx =</span> CHD)
+copd.df &lt;-<span class="st"> </span><span class="kw">read_diagnosis_data</span>(<span class="dt">file_name =</span> <span class="st">&quot;COPD DX.csv&quot;</span>, <span class="dt">abb_dx =</span> COPD)
+dm.df &lt;-<span class="st"> </span><span class="kw">read_diagnosis_data</span>(<span class="dt">file_name =</span> <span class="st">&quot;DM DX.csv&quot;</span>, <span class="dt">abb_dx =</span> DM)
+hf.df &lt;-<span class="st"> </span><span class="kw">read_diagnosis_data</span>(<span class="dt">file_name =</span> <span class="st">&quot;HF DX.csv&quot;</span>, <span class="dt">abb_dx =</span> HF)
+htn.df &lt;-<span class="st"> </span><span class="kw">read_diagnosis_data</span>(<span class="dt">file_name =</span> <span class="st">&quot;HTN DX.csv&quot;</span>, <span class="dt">abb_dx =</span> HTN)
+osa.df &lt;-<span class="st"> </span><span class="kw">read_diagnosis_data</span>(<span class="dt">file_name =</span> <span class="st">&quot;OSA DX.csv&quot;</span>, <span class="dt">abb_dx =</span> OSA)</code></pre></div>
 <p>Creating new dataframe containing just the MRNs and the corresponding ECGdates so that this can be used in the dx.match function to match diagnosis date to ecg date.</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">ecgdates.df &lt;-<span class="st"> </span>main.df <span class="op">%&gt;%</span>
 <span class="st">        </span><span class="kw">select</span>(MRN, ECGDate)</code></pre></div>
 <p>Function to select diagnosis meeting match criteria, the first date that is not more than &gt;30 days after ECG date.</p>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">dx.match.fun &lt;-<span class="st"> </span><span class="cf">function</span>(x, diagnosis) { 
+<p>For some patients there will be multiple entries with the same diagnosis date, this is due to different diagnosis codes, which one does not matter so we are selecting the first one.</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co">#' Match MRN to diagnosis data</span>
+<span class="co">#'</span>
+<span class="co">#' @param x \code{data.frame} with diagnosis data.</span>
+<span class="co">#' @param diagnosis abbreviated diagnosis, unquoted.</span>
+<span class="co">#'</span>
+<span class="co">#' @return</span>
+<span class="co">#'</span>
+<span class="co">#' @examples</span>
+match_mrn_diagnosis &lt;-<span class="st"> </span><span class="cf">function</span>(x, diagnosis) { 
   
-        <span class="co">#x should be dataframe, diagnosis in quotes</span>
-        <span class="co">#and capital letters</span>
-  
-        <span class="co">#Creates date variable with the diagnosis in capital letters</span>
-        <span class="co">#followed by date</span>
-        date &lt;-<span class="st"> </span><span class="kw">paste</span>(diagnosis, <span class="st">&quot;Date&quot;</span>, <span class="dt">sep =</span> <span class="st">&quot;.&quot;</span>)
+    .dx &lt;-<span class="st"> </span><span class="kw">enquo</span>(diagnosis)
+    .dx_date &lt;-<span class="st"> </span><span class="kw">paste0</span>(<span class="kw">quo_name</span>(.dx), <span class="st">&quot;.Date&quot;</span>)
         
-        <span class="co">#filters for the earliest diagnosis date</span>
-        filter_call &lt;-<span class="st"> </span><span class="kw">interp</span>(<span class="op">~</span><span class="st"> </span>a <span class="op">==</span><span class="st"> </span><span class="kw">min</span>(a) , <span class="dt">a =</span> <span class="kw">as_name</span>(date))
-        
-        <span class="co">#filters for the diagnosis date that are not more than 30 days after</span>
-        <span class="co">#ecgdate</span>
-        filter_call2 &lt;-<span class="st"> </span><span class="kw">interp</span>(<span class="op">~</span><span class="st"> </span><span class="kw">as.numeric</span>(<span class="kw">difftime</span>(ECGDate, a, <span class="dt">units =</span> <span class="st">&quot;days&quot;</span>)) <span class="op">&gt;=</span>(<span class="op">-</span><span class="dv">30</span>),
-                               <span class="dt">a =</span> <span class="kw">as_name</span>(date))
-        
-        <span class="co">#starts with joining x with ecgdates dataframe</span>
-        <span class="kw">inner_join</span>(x, ecgdates.df, <span class="dt">by =</span> <span class="st">&quot;MRN&quot;</span>) <span class="op">%&gt;%</span>
-<span class="st">                </span><span class="kw">group_by</span>(MRN) <span class="op">%&gt;%</span>
-<span class="st">                </span><span class="kw">filter_</span>(<span class="dt">.dots =</span> <span class="kw">list</span>(filter_call)) <span class="op">%&gt;%</span>
-<span class="st">                </span><span class="kw">filter_</span>(<span class="dt">.dots =</span> <span class="kw">list</span>(filter_call2)) <span class="op">%&gt;%</span>
-<span class="st">                </span>
-<span class="st">                </span><span class="co">#for some patients there will be multiple entries with the</span>
-<span class="st">                </span><span class="co">#same diagnosis date, this is due to different</span>
-<span class="st">                </span><span class="co">#diagnosis codes, which one does not matter</span>
-<span class="st">                </span><span class="co">#so we are selecting the first one</span>
-<span class="st">                </span><span class="kw">slice</span>(<span class="dv">1</span>) <span class="op">%&gt;%</span>
-<span class="st">                </span>
-<span class="st">                </span><span class="kw">ungroup</span>() <span class="op">%&gt;%</span>
-<span class="st">                </span>
-<span class="st">                </span><span class="co">#creates a new column with logical indicating presence of the current diagnosis</span>
-<span class="st">                </span><span class="kw">mutate_</span>(<span class="dt">.dots =</span> <span class="kw">setNames</span>(<span class="kw">list</span>(<span class="op">~</span><span class="st"> </span><span class="kw">as.factor</span>(<span class="dv">1</span>)), diagnosis)) <span class="op">%&gt;%</span>
-<span class="st">                </span>
-<span class="st">                </span><span class="kw">select</span>(<span class="op">-</span>ECGDate)
+    .matched_data &lt;-<span class="st"> </span>x <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">        </span><span class="kw">inner_join</span>(ecgdates.df, <span class="dt">by =</span> <span class="st">&quot;MRN&quot;</span>) <span class="op">%&gt;%</span><span class="st">  </span><span class="co">#  join x with ecgdates dataframe</span>
+<span class="st">        </span><span class="kw">group_by</span>(MRN) <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">        </span><span class="kw">filter</span>(<span class="op">!!</span>.dx_date <span class="op">==</span><span class="st"> </span><span class="kw">min</span>(<span class="op">!!</span>.dx_date)) <span class="op">%&gt;%</span>
+<span class="st">        </span><span class="kw">filter</span>(<span class="kw">as.numeric</span>(
+            <span class="kw">difftime</span>(ECGDate,
+                     .data[[<span class="op">!!</span>.dx_date]],
+                     <span class="dt">units =</span> <span class="st">&quot;days&quot;</span>)
+        )
+        <span class="op">&gt;=</span><span class="st"> </span>(<span class="op">-</span><span class="dv">30</span>)
+        ) <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">        </span><span class="kw">slice</span>(<span class="dv">1</span>) <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">        </span><span class="kw">ungroup</span>() <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">        </span><span class="kw">mutate</span>(<span class="op">!!</span><span class="kw">quo_name</span>(.dx) <span class="op">:</span><span class="er">=</span><span class="st"> </span><span class="kw">factor</span>(<span class="dv">1</span>)) <span class="op">%&gt;%</span><span class="st">  </span><span class="co">#  Diagnosis indicator</span>
+<span class="st">        </span><span class="kw">select</span>(<span class="op">-</span>ECGDate)
 }</code></pre></div>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">af.df &lt;-<span class="st"> </span><span class="kw">dx.match.fun</span>(af.df, <span class="st">&quot;AF&quot;</span>)
-
-cad.df &lt;-<span class="st"> </span><span class="kw">dx.match.fun</span>(cad.df, <span class="st">&quot;CAD&quot;</span>)
-
-chd.df &lt;-<span class="st"> </span><span class="kw">dx.match.fun</span>(chd.df, <span class="st">&quot;CHD&quot;</span>)
-
-copd.df &lt;-<span class="st"> </span><span class="kw">dx.match.fun</span>(copd.df, <span class="st">&quot;COPD&quot;</span>)
-
-dm.df &lt;-<span class="st"> </span><span class="kw">dx.match.fun</span>(dm.df, <span class="st">&quot;DM&quot;</span>)
-
-hf.df &lt;-<span class="st"> </span><span class="kw">dx.match.fun</span>(hf.df, <span class="st">&quot;HF&quot;</span>)
-
-htn.df &lt;-<span class="st"> </span><span class="kw">dx.match.fun</span>(htn.df, <span class="st">&quot;HTN&quot;</span>)
-
-osa.df &lt;-<span class="st"> </span><span class="kw">dx.match.fun</span>(osa.df, <span class="st">&quot;OSA&quot;</span>)</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">af.df &lt;-<span class="st"> </span><span class="kw">match_mrn_diagnosis</span>(af.df, AF)
+cad.df &lt;-<span class="st"> </span><span class="kw">match_mrn_diagnosis</span>(cad.df, CAD)
+chd.df &lt;-<span class="st"> </span><span class="kw">match_mrn_diagnosis</span>(chd.df, CHD)
+copd.df &lt;-<span class="st"> </span><span class="kw">match_mrn_diagnosis</span>(copd.df, COPD)
+dm.df &lt;-<span class="st"> </span><span class="kw">match_mrn_diagnosis</span>(dm.df, DM)
+hf.df &lt;-<span class="st"> </span><span class="kw">match_mrn_diagnosis</span>(hf.df, HF)
+htn.df &lt;-<span class="st"> </span><span class="kw">match_mrn_diagnosis</span>(htn.df, HTN)
+osa.df &lt;-<span class="st"> </span><span class="kw">match_mrn_diagnosis</span>(osa.df, OSA)</code></pre></div>
 <p>Joining diagnosis data to main.df</p>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">main.df2 &lt;-<span class="st"> </span><span class="kw">left_join</span>(main.df, af.df, <span class="dt">by =</span> <span class="st">&quot;MRN&quot;</span>) <span class="op">%&gt;%</span>
-<span class="st">        </span><span class="kw">left_join</span>(cad.df, <span class="dt">by =</span> <span class="st">&quot;MRN&quot;</span>) <span class="op">%&gt;%</span>
-<span class="st">        </span><span class="kw">left_join</span>(chd.df, <span class="dt">by =</span> <span class="st">&quot;MRN&quot;</span>) <span class="op">%&gt;%</span>
-<span class="st">        </span><span class="kw">left_join</span>(copd.df, <span class="dt">by =</span> <span class="st">&quot;MRN&quot;</span>) <span class="op">%&gt;%</span>
-<span class="st">        </span><span class="kw">left_join</span>(crt.df, <span class="dt">by =</span> <span class="st">&quot;MRN&quot;</span>) <span class="op">%&gt;%</span>
-<span class="st">        </span><span class="kw">left_join</span>(dm.df, <span class="dt">by =</span> <span class="st">&quot;MRN&quot;</span>) <span class="op">%&gt;%</span>
-<span class="st">        </span><span class="kw">left_join</span>(hf.df, <span class="dt">by =</span> <span class="st">&quot;MRN&quot;</span>) <span class="op">%&gt;%</span>
-<span class="st">        </span><span class="kw">left_join</span>(htn.df, <span class="dt">by =</span> <span class="st">&quot;MRN&quot;</span>) <span class="op">%&gt;%</span>
-<span class="st">        </span><span class="kw">left_join</span>(htx.df, <span class="dt">by =</span> <span class="st">&quot;MRN&quot;</span>) <span class="op">%&gt;%</span>
-<span class="st">        </span><span class="kw">left_join</span>(lvad.df, <span class="dt">by =</span> <span class="st">&quot;MRN&quot;</span>) <span class="op">%&gt;%</span>
-<span class="st">        </span><span class="kw">left_join</span>(osa.df, <span class="dt">by =</span> <span class="st">&quot;MRN&quot;</span>)</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">combine_list &lt;-<span class="st"> </span><span class="kw">list</span>(main.df, 
+                     af.df, 
+                     cad.df, 
+                     chd.df, 
+                     copd.df, 
+                     dm.df, 
+                     hf.df, 
+                     htn.df, 
+                     osa.df,
+                     crt.df,
+                     lvad.df,
+                     htx.df)
+
+main.df2 &lt;-<span class="st"> </span>purrr<span class="op">::</span><span class="kw">reduce</span>(combine_list, left_join, <span class="dt">by =</span> <span class="st">&quot;MRN&quot;</span>)</code></pre></div>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co"># Exclude all patients with an endpointdate less than 24 hours after ecgdate.</span>
 
 endPointAfterEcg &lt;-<span class="st"> </span><span class="cf">function</span>(ecgdate, endpointdate) {
   x &lt;-<span class="st"> </span>(<span class="kw">as.numeric</span>(<span class="kw">difftime</span>(ecgdate, endpointdate, <span class="dt">units =</span> <span class="st">&quot;days&quot;</span>)) <span class="op">&lt;=</span><span class="st"> </span>(<span class="op">-</span><span class="dv">1</span>))
-  
-  <span class="kw">return</span>(x)
 }
 
 
@@ -455,369 +454,343 @@ main.df2 &lt;-<span class="st"> </span>main.df2 <span class="op">%&gt;%</span>
 <span class="st">  </span><span class="kw">filter</span>((<span class="kw">endPointAfterEcg</span>(ECGDate, HTx.Date) <span class="op">|</span><span class="st"> </span><span class="kw">is.na</span>(HTx.Date))) <span class="op">%&gt;%</span>
 <span class="st">  </span><span class="kw">ungroup</span>()</code></pre></div>
 </div>
+</div>
 <div id="medications" class="section level2">
 <h2>Medications</h2>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">read.rx.data &lt;-<span class="st"> </span><span class="cf">function</span>(filepath, rx) {
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">read_rx_data &lt;-<span class="st"> </span><span class="cf">function</span>(file_name, abb_rx, <span class="dt">patient =</span> <span class="kw">c</span>(<span class="st">&quot;in&quot;</span>, <span class="st">&quot;out&quot;</span>)){
+    
+    .rx &lt;-<span class="st"> </span><span class="kw">enquo</span>(abb_rx)
+    .path &lt;-<span class="st"> </span><span class="kw">get_path</span>(<span class="dt">file_name =</span> file_name,
+                      <span class="dt">sub_folder =</span> <span class="st">&quot;Medications&quot;</span>)
+    
+    .rx_data &lt;-<span class="st"> </span><span class="kw">read.csv</span>(.path,
+                         <span class="dt">stringsAsFactors =</span> <span class="ot">FALSE</span>,
+                         <span class="dt">na.strings =</span> <span class="kw">c</span>(<span class="st">&quot;&quot;</span>,<span class="st">&quot; &quot;</span>,<span class="st">&quot;  &quot;</span>, <span class="st">&quot;NA&quot;</span>, <span class="st">&quot;N/A&quot;</span>))
+    
+    <span class="cf">if</span> (patient[<span class="dv">1</span>] <span class="op">==</span><span class="st"> &quot;in&quot;</span>) {
+        .rx_name &lt;-<span class="st"> </span><span class="kw">paste0</span>(<span class="kw">quo_name</span>(.rx), <span class="st">&quot;.Rx.Name&quot;</span>)
+        .rx_start_date &lt;-<span class="st"> </span><span class="kw">paste0</span>(<span class="kw">quo_name</span>(.rx), <span class="st">&quot;.Rx.Start&quot;</span>)
+        .rx_end_date   &lt;-<span class="st"> </span><span class="kw">paste0</span>(<span class="kw">quo_name</span>(.rx), <span class="st">&quot;.Rx.End&quot;</span>)
         
-        rx.name &lt;-<span class="st"> </span><span class="kw">paste</span>(rx, <span class="st">&quot;Rx.Name&quot;</span>, <span class="dt">sep =</span> <span class="st">&quot;.&quot;</span>)
-        rx.start &lt;-<span class="st"> </span><span class="kw">paste</span>(rx, <span class="st">&quot;Rx.Start&quot;</span>, <span class="dt">sep =</span> <span class="st">&quot;.&quot;</span>)
-        rx.end &lt;-<span class="st"> </span><span class="kw">paste</span>(rx, <span class="st">&quot;Rx.End&quot;</span>, <span class="dt">sep =</span> <span class="st">&quot;.&quot;</span>)
+        .formatted_data &lt;-<span class="st"> </span>.rx_data <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">            </span><span class="kw">rename</span>(<span class="dt">MRN =</span> Duke.MRN,
+                   <span class="op">!!</span>.rx_name <span class="op">:</span><span class="er">=</span><span class="st"> </span>Medication.Name,
+                   <span class="op">!!</span>.rx_start_date <span class="op">:</span><span class="er">=</span><span class="st"> </span>Start.Date,
+                   <span class="op">!!</span>.rx_end_date   <span class="op">:</span><span class="er">=</span><span class="st"> </span>End.Date) <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">            </span><span class="kw">mutate</span>(<span class="op">!!</span>.rx_start_date <span class="op">:</span><span class="er">=</span><span class="st"> </span><span class="kw">as.POSIXct</span>(.data[[<span class="op">!!</span>.rx_start_date]],
+                                                  <span class="dt">format =</span> <span class="st">&quot;%m/%d/%Y %H:%M:%S&quot;</span>, 
+                                                  <span class="dt">tz =</span> <span class="st">&quot;America/New_York&quot;</span>),
+                   <span class="op">!!</span>.rx_end_date   <span class="op">:</span><span class="er">=</span><span class="st"> </span><span class="kw">as.POSIXct</span>(.data[[<span class="op">!!</span>.rx_end_date]],
+                                                  <span class="dt">format =</span> <span class="st">&quot;%m/%d/%Y %H:%M:%S&quot;</span>, 
+                                                  <span class="dt">tz =</span> <span class="st">&quot;America/New_York&quot;</span>)
+            )
+    } <span class="cf">else</span> <span class="cf">if</span> (patient[<span class="dv">1</span>] <span class="op">==</span><span class="st"> &quot;out&quot;</span>) {
+        .rx_name &lt;-<span class="st"> </span><span class="kw">paste0</span>(<span class="kw">quo_name</span>(.rx), <span class="st">&quot;.Rx.OMR.Name&quot;</span>)
+        .rx_date &lt;-<span class="st"> </span><span class="kw">paste0</span>(<span class="kw">quo_name</span>(.rx), <span class="st">&quot;.Rx.OMR.Date&quot;</span>)
         
-        mutate_rx.start &lt;-<span class="st"> </span><span class="kw">interp</span>(<span class="op">~</span><span class="st"> </span><span class="kw">as.POSIXct</span>(a, <span class="dt">format =</span> <span class="st">&quot;%m/%d/%Y %H:%M:%S&quot;</span>, <span class="dt">tz =</span> <span class="st">&quot;America/New_York&quot;</span>),
-                              <span class="dt">a =</span> <span class="kw">as_name</span>(rx.start))
         
-        mutate_rx.end &lt;-<span class="st"> </span><span class="kw">interp</span>(<span class="op">~</span><span class="st"> </span><span class="kw">as.POSIXct</span>(a, <span class="dt">format =</span> <span class="st">&quot;%m/%d/%Y %H:%M:%S&quot;</span>, <span class="dt">tz =</span> <span class="st">&quot;America/New_York&quot;</span>),
-                               <span class="dt">a =</span> <span class="kw">as_name</span>(rx.end))
-        
-        <span class="kw">read.csv</span>(<span class="dt">file =</span> filepath, 
-                   <span class="dt">stringsAsFactors =</span> <span class="ot">FALSE</span>,
-                   <span class="dt">na.strings=</span><span class="kw">c</span>(<span class="st">&quot;&quot;</span>,<span class="st">&quot; &quot;</span>,<span class="st">&quot;  &quot;</span>, <span class="st">&quot;NA&quot;</span>, <span class="st">&quot;N/A&quot;</span>)) <span class="op">%&gt;%</span>
-<span class="st">                </span>
-<span class="st">                </span><span class="kw">rename_</span>(<span class="dt">.dots =</span> <span class="kw">setNames</span>(<span class="kw">list</span>(<span class="st">&quot;Duke.MRN&quot;</span>,
-                                      <span class="st">&quot;Medication.Name&quot;</span>,
-                                      <span class="st">&quot;Start.Date&quot;</span>,
-                                      <span class="st">&quot;End.Date&quot;</span>),
-                                 <span class="kw">list</span>(<span class="st">&quot;MRN&quot;</span>,
-                                      rx.name,
-                                      rx.start,
-                                      rx.end))) <span class="op">%&gt;%</span>
-<span class="st">                </span><span class="kw">mutate_</span>(<span class="dt">.dots =</span> <span class="kw">setNames</span>(<span class="kw">list</span>(mutate_rx.start,
-                                              mutate_rx.end), 
-                                         <span class="kw">list</span>(rx.start,
-                                              rx.end)))
+        .formatted_data &lt;-<span class="st"> </span>.rx_data <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">            </span><span class="kw">rename</span>(<span class="dt">MRN =</span> Duke.MRN,
+                   <span class="op">!!</span>.rx_name <span class="op">:</span><span class="er">=</span><span class="st"> </span>OMR.Medication.Name,
+                   <span class="op">!!</span>.rx_date <span class="op">:</span><span class="er">=</span><span class="st"> </span>OMR.Report.Date) <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">            </span><span class="kw">mutate</span>(<span class="op">!!</span>.rx_date <span class="op">:</span><span class="er">=</span><span class="st"> </span><span class="kw">as.POSIXct</span>(.data[[<span class="op">!!</span>.rx_date]],
+                                            <span class="dt">format =</span> <span class="st">&quot;%m/%d/%Y %H:%M:%S&quot;</span>, 
+                                                  <span class="dt">tz =</span> <span class="st">&quot;America/New_York&quot;</span>)
+            )
+    }
 }</code></pre></div>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">classIII.df &lt;-<span class="st"> </span><span class="kw">read.rx.data</span>(<span class="kw">file.path</span>(data_dir, <span class="st">&quot;Medications/Class III Patient Medications.csv&quot;</span>),
-                            <span class="st">&quot;ClassIII&quot;</span>)</code></pre></div>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">classIc.df &lt;-<span class="st"> </span><span class="kw">read.rx.data</span>(<span class="kw">file.path</span>(data_dir, <span class="st">&quot;Medications/Class Ic Patient Medication data.csv&quot;</span>),
-                           <span class="st">&quot;ClassIc&quot;</span>)</code></pre></div>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">bb1.df &lt;-<span class="st"> </span><span class="kw">read.rx.data</span>(<span class="kw">file.path</span>(data_dir, <span class="st">&quot;Medications/BB Patient Med2013 to 2017.csv&quot;</span>),
-                           <span class="st">&quot;BB&quot;</span>)</code></pre></div>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">bb2.df &lt;-<span class="st"> </span><span class="kw">read.rx.data</span>(<span class="kw">file.path</span>(data_dir, <span class="st">&quot;Medications/BB Patient Med2010 to 2013.csv&quot;</span>),
-                           <span class="st">&quot;BB&quot;</span>)</code></pre></div>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">bb3.df &lt;-<span class="st"> </span><span class="kw">read.rx.data</span>(<span class="kw">file.path</span>(data_dir, <span class="st">&quot;Medications/BB Patient Med2006 to 2010.csv&quot;</span>),
-                           <span class="st">&quot;BB&quot;</span>)</code></pre></div>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">bb.df &lt;-<span class="st"> </span><span class="kw">rbind</span>(bb1.df, bb2.df, bb3.df)</code></pre></div>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">amiodarone.df &lt;-<span class="st"> </span><span class="kw">read.rx.data</span>(<span class="kw">file.path</span>(data_dir, <span class="st">&quot;Medications/AmiodaronePatient Medication data.csv&quot;</span>),
-                           <span class="st">&quot;Amiodarone&quot;</span>)</code></pre></div>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">acei1.df &lt;-<span class="st"> </span><span class="kw">read.rx.data</span>(<span class="kw">file.path</span>(data_dir, <span class="st">&quot;Medications/ACEI Patient Medications 2013to2017.csv&quot;</span>),
-                           <span class="st">&quot;ACEI&quot;</span>)</code></pre></div>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">acei2.df &lt;-<span class="st"> </span><span class="kw">read.rx.data</span>(<span class="kw">file.path</span>(data_dir, <span class="st">&quot;Medications/ACEI Patient Medications 2010to2013.csv&quot;</span>),
-                           <span class="st">&quot;ACEI&quot;</span>)</code></pre></div>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">acei3.df &lt;-<span class="st"> </span><span class="kw">read.rx.data</span>(<span class="kw">file.path</span>(data_dir, <span class="st">&quot;Medications/ACEI Patient Medications 2006to2010.csv&quot;</span>),
-                           <span class="st">&quot;ACEI&quot;</span>)</code></pre></div>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">acei.df &lt;-<span class="st"> </span><span class="kw">rbind</span>(acei1.df, acei2.df, acei3.df)</code></pre></div>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">rx.match.fun &lt;-<span class="st"> </span><span class="cf">function</span>(x, rx) {
-      
-        startdate &lt;-<span class="st"> </span><span class="kw">paste</span>(rx, <span class="st">&quot;Rx.Start&quot;</span>, <span class="dt">sep =</span> <span class="st">&quot;.&quot;</span>)
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">classIII.df &lt;-<span class="st"> </span><span class="kw">read_rx_data</span>(<span class="st">&quot;Class III Patient Medications.csv&quot;</span>, ClassIII)
+classIc.df &lt;-<span class="st"> </span><span class="kw">read_rx_data</span>(<span class="st">&quot;Class Ic Patient Medication data.csv&quot;</span>, ClassIc)
+
+bb_list &lt;-<span class="st"> </span><span class="kw">list</span>(<span class="st">&quot;BB Patient Med2013 to 2017.csv&quot;</span>,
+                <span class="st">&quot;BB Patient Med2010 to 2013.csv&quot;</span>,
+                <span class="st">&quot;BB Patient Med2006 to 2010.csv&quot;</span>)
+bb.df &lt;-<span class="st"> </span><span class="kw">map_df</span>(bb_list, read_rx_data, <span class="dt">abb_rx =</span> BB)
+
+amiodarone.df &lt;-<span class="st"> </span><span class="kw">read_rx_data</span>(<span class="st">&quot;AmiodaronePatient Medication data.csv&quot;</span>,Amiodarone)
+
+acei_list &lt;-<span class="st"> </span><span class="kw">list</span>(<span class="st">&quot;ACEI Patient Medications 2013to2017.csv&quot;</span>,
+                  <span class="st">&quot;ACEI Patient Medications 2010to2013.csv&quot;</span>,
+                  <span class="st">&quot;ACEI Patient Medications 2006to2010.csv&quot;</span>)
+
+acei.df &lt;-<span class="st"> </span><span class="kw">map_df</span>(acei_list, read_rx_data, <span class="dt">abb_rx =</span> ACEI)</code></pre></div>
+<p>We only want medication entries where the start date was not more than 30 days after ecgdate, or where the end date was more than 30 days before ecgdate.</p>
+<p>For outpatients, denoted by OMR, where we only have a date indicating whether that patient had the medication at that point in time or not, we filter for the absolute difference in days between that timepoint and ecgdate to be less than or equal to 30 days.</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">match_mrn_rx &lt;-<span class="st"> </span><span class="cf">function</span>(x, rx, <span class="dt">patient =</span> <span class="kw">c</span>(<span class="st">&quot;in&quot;</span>, <span class="st">&quot;out&quot;</span>)){
+    .rx &lt;-<span class="st"> </span><span class="kw">enquo</span>(rx)
+    .matched_data &lt;-<span class="st"> </span><span class="kw">inner_join</span>(ecgdates.df, x, <span class="dt">by =</span> <span class="st">&quot;MRN&quot;</span>)
+    .rx_name &lt;-<span class="st"> </span><span class="kw">paste0</span>(<span class="kw">quo_name</span>(.rx), <span class="st">&quot;.Rx&quot;</span>)
+    
+    <span class="cf">if</span> (patient[<span class="dv">1</span>] <span class="op">==</span><span class="st"> &quot;in&quot;</span>){
+        .rx_start_date &lt;-<span class="st"> </span><span class="kw">paste0</span>(<span class="kw">quo_name</span>(.rx), <span class="st">&quot;.Rx.Start&quot;</span>)
+        .rx_end_date &lt;-<span class="st"> </span><span class="kw">paste0</span>(<span class="kw">quo_name</span>(.rx), <span class="st">&quot;.Rx.End&quot;</span>)
         
-        enddate &lt;-<span class="st"> </span><span class="kw">paste</span>(rx, <span class="st">&quot;Rx.End&quot;</span>, <span class="dt">sep =</span> <span class="st">&quot;.&quot;</span>)
+        .formatted_data &lt;-<span class="st"> </span>.matched_data <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">            </span><span class="kw">mutate</span>(
+                <span class="dt">start_diff =</span> <span class="kw">as.numeric</span>(
+                    <span class="kw">difftime</span>(ECGDate, .data[[<span class="op">!!</span>.rx_start_date]], <span class="dt">units =</span> <span class="st">&quot;days&quot;</span>)
+                ),
+                <span class="dt">end_diff =</span> <span class="kw">as.numeric</span>(
+                    <span class="kw">difftime</span>(ECGDate, .data[[<span class="op">!!</span>.rx_end_date]], <span class="dt">units =</span> <span class="st">&quot;days&quot;</span>)
+                )
+            ) <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">            </span><span class="kw">group_by</span>(MRN) <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">            </span><span class="kw">filter</span>(start_diff <span class="op">&gt;=</span><span class="st"> </span>(<span class="op">-</span><span class="dv">30</span>)) <span class="op">%&gt;%</span>
+<span class="st">            </span><span class="kw">filter</span>(end_diff <span class="op">&lt;=</span><span class="st"> </span><span class="dv">30</span>) <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">            </span><span class="kw">slice</span>(<span class="dv">1</span>) <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">            </span><span class="kw">ungroup</span>() <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">            </span><span class="kw">mutate</span>(<span class="op">!!</span>.rx_name <span class="op">:</span><span class="er">=</span><span class="st"> </span><span class="kw">factor</span>(<span class="dv">1</span>)) <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">            </span><span class="kw">select</span>(<span class="op">-</span>ECGDate, <span class="op">-</span>start_diff, <span class="op">-</span>end_diff)
+    } <span class="cf">else</span> <span class="cf">if</span> (patient[<span class="dv">1</span>] <span class="op">==</span><span class="st"> &quot;out&quot;</span>) {
+        .rx_report_date &lt;-<span class="st"> </span><span class="kw">paste0</span>(<span class="kw">quo_name</span>(.rx), <span class="st">&quot;.Rx.OMR.Date&quot;</span>)
         
-        rx.log &lt;-<span class="st"> </span><span class="kw">paste</span>(rx, <span class="st">&quot;Rx&quot;</span>, <span class="dt">sep =</span> <span class="st">&quot;.&quot;</span>)
-        
-        <span class="co">#filters for the Rx startdate that is not more than 30 days after</span>
-        <span class="co">#ecgdate and Rx enddate not more than 30 days before ecgdate</span>
-        date_filter &lt;-<span class="st"> </span><span class="kw">interp</span>(<span class="op">~</span><span class="st"> </span><span class="kw">as.numeric</span>(<span class="kw">difftime</span>(ECGDate, a, <span class="dt">units =</span> <span class="st">&quot;days&quot;</span>)) <span class="op">&gt;=</span>(<span class="op">-</span><span class="dv">30</span>) <span class="op">&amp;</span>
-<span class="st">                                           </span><span class="kw">as.numeric</span>(<span class="kw">difftime</span>(ECGDate, b, <span class="dt">units =</span> <span class="st">&quot;days&quot;</span>)) <span class="op">&lt;=</span>(<span class="dv">30</span>),
-                                   <span class="dt">a =</span> <span class="kw">as_name</span>(startdate),
-                                   <span class="dt">b =</span> <span class="kw">as_name</span>(enddate))
-        
-        <span class="co">#starts with joining x with ecgdates dataframe</span>
-        <span class="kw">inner_join</span>(x, ecgdates.df, <span class="dt">by =</span> <span class="st">&quot;MRN&quot;</span>) <span class="op">%&gt;%</span>
-<span class="st">                </span><span class="kw">group_by</span>(MRN) <span class="op">%&gt;%</span>
-<span class="st">                </span><span class="kw">filter_</span>(<span class="dt">.dots =</span> <span class="kw">list</span>(date_filter)) <span class="op">%&gt;%</span>
-<span class="st">                </span>
-<span class="st">                </span><span class="co">#adds column indicating presence of type of medication</span>
-<span class="st">                </span><span class="kw">mutate_</span>(<span class="dt">.dots =</span> <span class="kw">setNames</span>(<span class="kw">list</span>(<span class="op">~</span><span class="kw">as.factor</span>(<span class="dv">1</span>)), rx.log)) <span class="op">%&gt;%</span>
-<span class="st">                </span><span class="kw">slice</span>(<span class="dv">1</span>) <span class="op">%&gt;%</span>
-<span class="st">                </span><span class="kw">ungroup</span>() <span class="op">%&gt;%</span>
-<span class="st">                </span><span class="kw">select</span>(<span class="op">-</span>ECGDate)
-                
+        .formatted_data &lt;-<span class="st"> </span>.matched_data <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">            </span><span class="kw">group_by</span>(MRN) <span class="op">%&gt;%</span>
+<span class="st">            </span><span class="kw">mutate</span>(<span class="dt">time_diff =</span> <span class="kw">abs</span>(
+                <span class="kw">as.numeric</span>(
+                    <span class="kw">difftime</span>(ECGDate,
+                             .data[[<span class="op">!!</span>.rx_report_date]],
+                             <span class="dt">units =</span> <span class="st">&quot;days&quot;</span>)
+                    )
+                )
+            ) <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">            </span><span class="kw">filter</span>(time_diff <span class="op">==</span><span class="st"> </span><span class="kw">min</span>(time_diff, <span class="dt">na.rm =</span> <span class="ot">TRUE</span>)) <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">            </span><span class="kw">filter</span>(time_diff <span class="op">&lt;=</span><span class="st"> </span><span class="dv">30</span>) <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">            </span><span class="kw">slice</span>(<span class="dv">1</span>) <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">            </span><span class="kw">ungroup</span>() <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">            </span><span class="kw">mutate</span>(<span class="op">!!</span>.rx_name <span class="op">:</span><span class="er">=</span><span class="st"> </span><span class="kw">factor</span>(<span class="dv">1</span>)) <span class="op">%&gt;%</span>
+<span class="st">            </span><span class="kw">select</span>(<span class="op">-</span>time_diff, <span class="op">-</span>ECGDate)
+    }
 }</code></pre></div>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">classIII.df &lt;-<span class="st"> </span><span class="kw">rx.match.fun</span>(classIII.df, <span class="st">&quot;ClassIII&quot;</span>)
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">classIII.df &lt;-<span class="st"> </span><span class="kw">match_mrn_rx</span>(classIII.df, ClassIII)
+classIc.df &lt;-<span class="st"> </span><span class="kw">match_mrn_rx</span>(classIc.df, ClassIc)
+acei.df &lt;-<span class="st"> </span><span class="kw">match_mrn_rx</span>(acei.df, ACEI)
+amiodarone.df &lt;-<span class="st"> </span><span class="kw">match_mrn_rx</span>(amiodarone.df, Amiodarone)
+bb.df &lt;-<span class="st"> </span><span class="kw">match_mrn_rx</span>(bb.df, BB)</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">classIII.OMR.df &lt;-<span class="st"> </span><span class="kw">read_rx_data</span>(<span class="st">&quot;Class III OMR data.csv&quot;</span>, ClassIII, <span class="dt">patient =</span> <span class="st">&quot;out&quot;</span>)
+classIc.OMR.df &lt;-<span class="st"> </span><span class="kw">read_rx_data</span>(<span class="st">&quot;Class Ic OMR data.csv&quot;</span>, ClassIc, <span class="dt">patient =</span> <span class="st">&quot;out&quot;</span>)
 
-classIc.df &lt;-<span class="st"> </span><span class="kw">rx.match.fun</span>(classIc.df, <span class="st">&quot;ClassIc&quot;</span>)
+bb_OMR_list &lt;-<span class="st"> </span><span class="kw">list</span>(
+                <span class="st">&quot;BB OMR2010 to 2013.csv&quot;</span>,
+                <span class="st">&quot;BB OMR2006 to 2010.csv&quot;</span>
+                )
+bb.OMR.df &lt;-<span class="st"> </span><span class="kw">map_df</span>(bb_OMR_list, read_rx_data, <span class="dt">abb_rx =</span> BB, <span class="dt">patient =</span> <span class="st">&quot;out&quot;</span>)
 
-acei.df &lt;-<span class="st"> </span><span class="kw">rx.match.fun</span>(acei.df, <span class="st">&quot;ACEI&quot;</span>)
+amiodarone.OMR.df &lt;-<span class="st"> </span><span class="kw">read_rx_data</span>(<span class="st">&quot;AmiodaroneOMR data.csv&quot;</span>, Amiodarone, <span class="dt">patient =</span> <span class="st">&quot;out&quot;</span>)
 
-amiodarone.df &lt;-<span class="st"> </span><span class="kw">rx.match.fun</span>(amiodarone.df, <span class="st">&quot;Amiodarone&quot;</span>)
+acei_OMR_list &lt;-<span class="st"> </span><span class="kw">list</span>(
+                  <span class="st">&quot;ACEI OMR2010 to 2013.csv&quot;</span>,
+                  <span class="st">&quot;ACEI OMR2006 to 2010.csv&quot;</span>
+                  )
 
-bb.df &lt;-<span class="st"> </span><span class="kw">rx.match.fun</span>(bb.df, <span class="st">&quot;BB&quot;</span>)</code></pre></div>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">read.rx.omr.data &lt;-<span class="st"> </span><span class="cf">function</span>(filepath, rx) {
-        
-        rx.name &lt;-<span class="st"> </span><span class="kw">paste</span>(rx, <span class="st">&quot;Rx.OMR.Name&quot;</span>, <span class="dt">sep =</span> <span class="st">&quot;.&quot;</span>)
-        rx.date &lt;-<span class="st"> </span><span class="kw">paste</span>(rx, <span class="st">&quot;Rx.OMR.Date&quot;</span>, <span class="dt">sep =</span> <span class="st">&quot;.&quot;</span>)
-        
-        mutate_rx.date &lt;-<span class="st"> </span><span class="kw">interp</span>(<span class="op">~</span><span class="st"> </span><span class="kw">as.POSIXct</span>(a, <span class="dt">format =</span> <span class="st">&quot;%m/%d/%Y %H:%M:%S&quot;</span>, <span class="dt">tz =</span> <span class="st">&quot;America/New_York&quot;</span>),
-                              <span class="dt">a =</span> <span class="kw">as_name</span>(rx.date))
-        
-        <span class="kw">read.csv</span>(<span class="dt">file =</span> filepath, 
-                   <span class="dt">stringsAsFactors =</span> <span class="ot">FALSE</span>,
-                   <span class="dt">na.strings=</span><span class="kw">c</span>(<span class="st">&quot;&quot;</span>,<span class="st">&quot; &quot;</span>,<span class="st">&quot;  &quot;</span>, <span class="st">&quot;NA&quot;</span>, <span class="st">&quot;N/A&quot;</span>)) <span class="op">%&gt;%</span>
-<span class="st">                </span>
-<span class="st">                </span><span class="kw">rename_</span>(<span class="dt">.dots =</span> <span class="kw">setNames</span>(<span class="kw">list</span>(<span class="st">&quot;Duke.MRN&quot;</span>,
-                                      <span class="st">&quot;OMR.Medication.Name&quot;</span>,
-                                      <span class="st">&quot;OMR.Report.Date&quot;</span>),
-                                 <span class="kw">list</span>(<span class="st">&quot;MRN&quot;</span>,
-                                      rx.name,
-                                      rx.date))) <span class="op">%&gt;%</span>
-<span class="st">                </span>
-<span class="st">                </span><span class="kw">mutate_</span>(<span class="dt">.dots =</span> <span class="kw">setNames</span>(<span class="kw">list</span>(mutate_rx.date),rx.date))
+acei.OMR.df &lt;-<span class="st"> </span><span class="kw">map_df</span>(acei_OMR_list, read_rx_data, <span class="dt">abb_rx =</span> ACEI, <span class="dt">patient =</span> <span class="st">&quot;out&quot;</span>)</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">classIII.OMR.df &lt;-<span class="st"> </span><span class="kw">match_mrn_rx</span>(classIII.OMR.df, ClassIII, <span class="dt">patient =</span> <span class="st">&quot;out&quot;</span>)
+classIc.OMR.df &lt;-<span class="st"> </span><span class="kw">match_mrn_rx</span>(classIc.OMR.df, ClassIc, <span class="dt">patient =</span> <span class="st">&quot;out&quot;</span>)
+acei.OMR.df &lt;-<span class="st"> </span><span class="kw">match_mrn_rx</span>(acei.OMR.df, ACEI, <span class="dt">patient =</span> <span class="st">&quot;out&quot;</span>)
+amiodarone.OMR.df &lt;-<span class="st"> </span><span class="kw">match_mrn_rx</span>(amiodarone.OMR.df, Amiodarone, <span class="dt">patient =</span> <span class="st">&quot;out&quot;</span>)
+bb.OMR.df &lt;-<span class="st"> </span><span class="kw">match_mrn_rx</span>(bb.OMR.df, BB, <span class="dt">patient =</span> <span class="st">&quot;out&quot;</span>)</code></pre></div>
+<p>Joining diagnosis data to main.df</p>
+<p>Earlier added column indicating whether specific type of medication was used or not except from joining hospital and OMR patient medcation data this code also updates that column with a 1 if presence of entry in OMR medication column</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">combine_rx_list &lt;-<span class="st"> </span><span class="kw">list</span>(
+    main.df2,
+    classIII.df,
+    classIc.df,
+    acei.df,
+    amiodarone.df,
+    bb.df,
+    classIII.OMR.df,
+    classIc.OMR.df,
+    acei.OMR.df,
+    amiodarone.OMR.df,
+    bb.OMR.df
+)
+
+
+main.df3 &lt;-<span class="st"> </span>purrr<span class="op">::</span><span class="kw">reduce</span>(combine_rx_list, left_join, <span class="dt">by =</span> <span class="st">&quot;MRN&quot;</span>)</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co">#' Coalesce duplicated Rx columns</span>
+<span class="co">#'</span>
+<span class="co">#' The matching of MRN and Rx created .Rx.x and .Rx.y indicator columns, this merges those.</span>
+<span class="co">#'</span>
+<span class="co">#' @param abb_rx A \code{character} Rx name</span>
+<span class="co">#' @param x A \code{data.frame}</span>
+<span class="co">#'</span>
+<span class="co">#' @return</span>
+<span class="co">#'</span>
+<span class="co">#' @examples</span>
+coalesce_rx_columns &lt;-<span class="st"> </span><span class="cf">function</span>(abb_rx, x){
+    .rx_x &lt;-<span class="st"> </span><span class="kw">paste0</span>(abb_rx, <span class="st">&quot;.Rx.x&quot;</span>)
+    .rx_y &lt;-<span class="st"> </span><span class="kw">paste0</span>(abb_rx, <span class="st">&quot;.Rx.y&quot;</span>)
+    .rx_name &lt;-<span class="st"> </span><span class="kw">paste0</span>(abb_rx, <span class="st">&quot;.Rx&quot;</span>)
+    
+    .formatted_data &lt;-<span class="st"> </span>x <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">        </span><span class="kw">mutate</span>(<span class="op">!!</span>.rx_name <span class="op">:</span><span class="er">=</span><span class="st"> </span><span class="kw">coalesce</span>(.data[[<span class="op">!!</span>.rx_x]], 
+                                      .data[[<span class="op">!!</span>.rx_y]])
+               ) <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">        </span><span class="kw">select</span>(<span class="op">-!!</span>.rx_x, <span class="op">-!!</span>.rx_y)
 }</code></pre></div>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">classIII.OMR.df &lt;-<span class="st"> </span><span class="kw">read.rx.omr.data</span>(<span class="kw">file.path</span>(data_dir, <span class="st">&quot;Medications/Class III OMR data.csv&quot;</span>),
-                           <span class="st">&quot;ClassIII&quot;</span>)</code></pre></div>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">classIc.OMR.df &lt;-<span class="st"> </span><span class="kw">read.rx.omr.data</span>(<span class="kw">file.path</span>(data_dir, <span class="st">&quot;Medications/Class Ic OMR data.csv&quot;</span>),
-                           <span class="st">&quot;ClassIc&quot;</span>)</code></pre></div>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">bb1.OMR.df &lt;-<span class="st"> </span><span class="kw">read.rx.omr.data</span>(<span class="kw">file.path</span>(data_dir, <span class="st">&quot;Medications/BB OMR2010 to 2013.csv&quot;</span>),
-                           <span class="st">&quot;BB&quot;</span>)</code></pre></div>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">bb2.OMR.df &lt;-<span class="st"> </span><span class="kw">read.rx.omr.data</span>(<span class="kw">file.path</span>(data_dir, <span class="st">&quot;Medications/BB OMR2006 to 2010.csv&quot;</span>),
-                           <span class="st">&quot;BB&quot;</span>)</code></pre></div>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">bb.OMR.df &lt;-<span class="st"> </span><span class="kw">rbind</span>(bb1.OMR.df, bb2.OMR.df)</code></pre></div>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">amiodarone.OMR.df &lt;-<span class="st"> </span><span class="kw">read.rx.omr.data</span>(<span class="kw">file.path</span>(data_dir, <span class="st">&quot;Medications/AmiodaroneOMR data.csv&quot;</span>),
-                           <span class="st">&quot;Amiodarone&quot;</span>)</code></pre></div>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">acei1.OMR.df &lt;-<span class="st"> </span><span class="kw">read.rx.omr.data</span>(<span class="kw">file.path</span>(data_dir, <span class="st">&quot;Medications/ACEI OMR2010 to 2013.csv&quot;</span>),
-                           <span class="st">&quot;ACEI&quot;</span>)</code></pre></div>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">acei2.OMR.df &lt;-<span class="st"> </span><span class="kw">read.rx.omr.data</span>(<span class="kw">file.path</span>(data_dir, <span class="st">&quot;Medications/ACEI OMR2006 to 2010.csv&quot;</span>),
-                           <span class="st">&quot;ACEI&quot;</span>)</code></pre></div>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">acei.OMR.df &lt;-<span class="st"> </span><span class="kw">rbind</span>(acei1.OMR.df, acei2.OMR.df)</code></pre></div>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">rx.omr.match &lt;-<span class="st"> </span><span class="cf">function</span>(x, rx) {
-        rxdate &lt;-<span class="st"> </span><span class="kw">paste</span>(rx, <span class="st">&quot;Rx.OMR.Date&quot;</span>, <span class="dt">sep =</span> <span class="st">&quot;.&quot;</span>)
-        
-        mutate_difftime &lt;-<span class="st"> </span><span class="kw">interp</span>(<span class="op">~</span><span class="st"> </span><span class="kw">abs</span>(<span class="kw">as.numeric</span>(<span class="kw">difftime</span>(ECGDate, a, <span class="dt">units =</span> <span class="st">&quot;days&quot;</span>))),
-                                  <span class="dt">a =</span> <span class="kw">as_name</span>(rxdate))
-        
-        <span class="co">#filters for the Rx date that is within 30 days of</span>
-        <span class="co">#ecgdate</span>
-        rxdate_filter &lt;-<span class="st"> </span><span class="kw">interp</span>(<span class="op">~</span><span class="st"> </span><span class="kw">abs</span>(<span class="kw">as.numeric</span>(<span class="kw">difftime</span>(ECGDate, a, <span class="dt">units =</span> <span class="st">&quot;days&quot;</span>))) <span class="op">&lt;=</span><span class="dv">30</span>,
-                                   <span class="dt">a =</span> <span class="kw">as_name</span>(rxdate))
-        
-        <span class="co">#starts with joining x with ecgdates dataframe</span>
-        <span class="kw">inner_join</span>(x, ecgdates.df, <span class="dt">by =</span> <span class="st">&quot;MRN&quot;</span>) <span class="op">%&gt;%</span>
-<span class="st">                </span><span class="kw">group_by</span>(MRN) <span class="op">%&gt;%</span>
-<span class="st">                </span><span class="kw">mutate_</span>(<span class="dt">.dots =</span> <span class="kw">setNames</span>(<span class="kw">list</span>(mutate_difftime), <span class="st">&quot;diff&quot;</span>)) <span class="op">%&gt;%</span>
-<span class="st">                </span><span class="kw">filter</span>(diff <span class="op">==</span><span class="st"> </span><span class="kw">min</span>(diff)) <span class="op">%&gt;%</span>
-<span class="st">                </span><span class="kw">filter_</span>(<span class="dt">.dots =</span> rxdate_filter) <span class="op">%&gt;%</span>
-<span class="st">                </span><span class="kw">slice</span>(<span class="dv">1</span>) <span class="op">%&gt;%</span>
-<span class="st">                </span><span class="kw">ungroup</span>() <span class="op">%&gt;%</span>
-<span class="st">                </span><span class="kw">select</span>(<span class="op">-</span><span class="kw">c</span>(diff,ECGDate))
-}</code></pre></div>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">classIII.OMR.df &lt;-<span class="st"> </span><span class="kw">rx.omr.match</span>(classIII.OMR.df, <span class="st">&quot;ClassIII&quot;</span>)</code></pre></div>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">classIc.OMR.df &lt;-<span class="st"> </span><span class="kw">rx.omr.match</span>(classIc.OMR.df, <span class="st">&quot;ClassIc&quot;</span>)</code></pre></div>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">bb.OMR.df &lt;-<span class="st"> </span><span class="kw">rx.omr.match</span>(bb.OMR.df, <span class="st">&quot;BB&quot;</span>)</code></pre></div>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">amiodarone.OMR.df &lt;-<span class="st"> </span><span class="kw">rx.omr.match</span>(amiodarone.OMR.df, <span class="st">&quot;Amiodarone&quot;</span>)</code></pre></div>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">acei.OMR.df &lt;-<span class="st"> </span><span class="kw">rx.omr.match</span>(acei.OMR.df, <span class="st">&quot;ACEI&quot;</span>)</code></pre></div>
-<p>Joining diagnosis data to main.df Earlier added column indicating whether specific type of medication was used or not except from joining hopstial and OMR patient medcation data this code also updates that column with a 1 if presence of entry in OMR medication column</p>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">main.df3 &lt;-<span class="st"> </span><span class="kw">left_join</span>(main.df2, classIII.df, <span class="dt">by =</span> <span class="st">&quot;MRN&quot;</span>) <span class="op">%&gt;%</span>
-<span class="st">        </span>
-<span class="st">        </span><span class="kw">left_join</span>(classIII.OMR.df, <span class="dt">by =</span> <span class="st">&quot;MRN&quot;</span>) <span class="op">%&gt;%</span>
-<span class="st">        </span>
-<span class="st">        </span><span class="kw">mutate</span>(<span class="dt">ClassIII.Rx =</span> <span class="kw">ifelse</span>(<span class="op">!</span><span class="kw">is.na</span>(ClassIII.Rx.OMR.Name), <span class="dv">1</span>, ClassIII.Rx)) <span class="op">%&gt;%</span>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">coalesce_list &lt;-<span class="st"> </span><span class="kw">list</span>(
+    <span class="st">&quot;ClassIII&quot;</span>,
+    <span class="st">&quot;ClassIc&quot;</span>,
+    <span class="st">&quot;ACEI&quot;</span>,
+    <span class="st">&quot;Amiodarone&quot;</span>,
+    <span class="st">&quot;BB&quot;</span>)
 
-<span class="st">        </span><span class="kw">left_join</span>(classIc.df, <span class="dt">by =</span> <span class="st">&quot;MRN&quot;</span>) <span class="op">%&gt;%</span>
-<span class="st">        </span>
-<span class="st">        </span><span class="kw">left_join</span>(classIc.OMR.df, <span class="dt">by =</span> <span class="st">&quot;MRN&quot;</span>) <span class="op">%&gt;%</span>
-<span class="st">        </span>
-<span class="st">        </span><span class="kw">mutate</span>(<span class="dt">ClassIc.Rx =</span> <span class="kw">ifelse</span>(<span class="op">!</span><span class="kw">is.na</span>(ClassIc.Rx.OMR.Name), <span class="dv">1</span>, ClassIc.Rx)) <span class="op">%&gt;%</span>
-<span class="st">        </span>
-<span class="st">        </span><span class="kw">left_join</span>(acei.df, <span class="dt">by =</span> <span class="st">&quot;MRN&quot;</span>) <span class="op">%&gt;%</span>
-<span class="st">        </span>
-<span class="st">        </span><span class="kw">left_join</span>(acei.OMR.df, <span class="dt">by =</span> <span class="st">&quot;MRN&quot;</span>) <span class="op">%&gt;%</span>
-<span class="st">        </span>
-<span class="st">        </span><span class="kw">mutate</span>(<span class="dt">ACEI.Rx =</span> <span class="kw">ifelse</span>(<span class="op">!</span><span class="kw">is.na</span>(ACEI.Rx.OMR.Name), <span class="dv">1</span>, ACEI.Rx)) <span class="op">%&gt;%</span>
-<span class="st">        </span>
-<span class="st">        </span><span class="kw">left_join</span>(amiodarone.df, <span class="dt">by =</span> <span class="st">&quot;MRN&quot;</span>) <span class="op">%&gt;%</span>
-<span class="st">        </span>
-<span class="st">        </span><span class="kw">left_join</span>(amiodarone.OMR.df, <span class="dt">by =</span> <span class="st">&quot;MRN&quot;</span>) <span class="op">%&gt;%</span>
-<span class="st">        </span>
-<span class="st">        </span><span class="kw">mutate</span>(<span class="dt">Amiodarone.Rx =</span> <span class="kw">ifelse</span>(<span class="op">!</span><span class="kw">is.na</span>(Amiodarone.Rx.OMR.Name), <span class="dv">1</span>, Amiodarone.Rx)) <span class="op">%&gt;%</span>
-<span class="st">        </span>
-<span class="st">        </span><span class="kw">left_join</span>(bb.df, <span class="dt">by =</span> <span class="st">&quot;MRN&quot;</span>) <span class="op">%&gt;%</span>
-<span class="st">        </span>
-<span class="st">        </span><span class="kw">left_join</span>(bb.OMR.df, <span class="dt">by =</span> <span class="st">&quot;MRN&quot;</span>) <span class="op">%&gt;%</span>
-<span class="st">        </span>
-<span class="st">        </span><span class="kw">mutate</span>(<span class="dt">BB.Rx =</span> <span class="kw">ifelse</span>(<span class="op">!</span><span class="kw">is.na</span>(BB.Rx.OMR.Name), <span class="dv">1</span>, BB.Rx))</code></pre></div>
+<span class="cf">for</span>(rx <span class="cf">in</span> coalesce_list){
+    main.df3 &lt;-<span class="st"> </span><span class="kw">coalesce_rx_columns</span>(rx, main.df3)
+}</code></pre></div>
 </div>
 <div id="lab-data" class="section level2">
 <h2>Lab data</h2>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">read.lab.data &lt;-<span class="st"> </span><span class="cf">function</span>(filepath, lab) {
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">read_lab_data &lt;-<span class="st"> </span><span class="cf">function</span>(file_name, lab) {
+    .lab &lt;-<span class="st"> </span><span class="kw">enquo</span>(lab)
+    .lab_date &lt;-<span class="st"> </span><span class="kw">paste0</span>(<span class="kw">quo_name</span>(.lab), <span class="st">&quot;.lab.Date&quot;</span>)
+    .lab_value &lt;-<span class="st"> </span><span class="kw">paste0</span>(<span class="kw">quo_name</span>(.lab), <span class="st">&quot;.lab.Value&quot;</span>)
+    
+    .path &lt;-<span class="st"> </span><span class="kw">get_path</span>(<span class="dt">file_name =</span> file_name,
+                      <span class="dt">sub_folder =</span> <span class="st">&quot;Lab&quot;</span>)
+    
+    .lab_data &lt;-<span class="st"> </span><span class="kw">read.csv</span>(.path,
+                          <span class="dt">stringsAsFactors =</span> <span class="ot">FALSE</span>,
+                          <span class="dt">na.strings =</span> <span class="kw">c</span>(<span class="st">&quot;&quot;</span>,<span class="st">&quot; &quot;</span>,<span class="st">&quot;  &quot;</span>, <span class="st">&quot;NA&quot;</span>, <span class="st">&quot;N/A&quot;</span>, 
+                                         <span class="st">&quot;CANCELED&quot;</span>, <span class="st">&quot;*H&quot;</span>, <span class="st">&quot;*&quot;</span>, <span class="st">&quot;**&quot;</span>, 
+                                         <span class="st">&quot;***&quot;</span>, <span class="st">&quot;*******&quot;</span>)
+                          )
+    
+    .formatted_data &lt;-<span class="st"> </span>.lab_data <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">        </span><span class="kw">rename</span>(<span class="dt">MRN =</span> Duke.MRN,
+               <span class="op">!!</span>.lab_date <span class="op">:</span><span class="er">=</span><span class="st"> </span>Specimen.Collection.Date,
+               <span class="op">!!</span>.lab_value <span class="op">:</span><span class="er">=</span><span class="st"> </span>Text.Result) <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">        </span><span class="kw">mutate</span>(<span class="op">!!</span>.lab_date <span class="op">:</span><span class="er">=</span><span class="st"> </span><span class="kw">as.POSIXct</span>(.data[[<span class="op">!!</span>.lab_date]],
+                                         <span class="dt">tryFormats =</span> <span class="kw">c</span>(
+                                             <span class="st">&quot;%m/%d/%Y %H:%M:%S&quot;</span>,
+                                             <span class="st">&quot;%m/%d/%Y %H:%M&quot;</span>),
+                                         <span class="dt">tz =</span> <span class="st">&quot;America/New_York&quot;</span>)
+        ) <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">        </span><span class="kw">mutate</span>(<span class="op">!!</span>.lab_value <span class="op">:</span><span class="er">=</span><span class="st"> </span>stringr<span class="op">::</span><span class="kw">str_remove_all</span>(.data[[<span class="op">!!</span>.lab_value]], <span class="dt">pattern =</span> <span class="st">&quot;&lt;|&gt;|=&quot;</span>))
+    
+    missing_text_result_index &lt;-<span class="st"> </span><span class="kw">which</span>(<span class="kw">is.na</span>(.formatted_data[[.lab_value]]) <span class="op">&amp;</span>
+<span class="st">                                     </span><span class="op">!</span><span class="kw">is.na</span>(.formatted_data[[<span class="st">&quot;Numeric.Result&quot;</span>]]))
+    
+    replacement_values &lt;-<span class="st"> </span><span class="kw">as.integer</span>(.formatted_data[missing_text_result_index, <span class="st">&quot;Numeric.Result&quot;</span>])
+    
+    .formatted_data[missing_text_result_index, .lab_value] &lt;-<span class="st"> </span>replacement_values
+    
+    <span class="cf">if</span> (<span class="kw">quo_name</span>(.lab) <span class="op">==</span><span class="st"> &quot;BNP&quot;</span>) {
         
-        lab.date &lt;-<span class="st"> </span><span class="kw">paste</span>(lab, <span class="st">&quot;lab.Date&quot;</span>, <span class="dt">sep =</span> <span class="st">&quot;.&quot;</span>)
-        lab.value &lt;-<span class="st"> </span><span class="kw">paste</span>(lab, <span class="st">&quot;lab.Value&quot;</span>, <span class="dt">sep =</span> <span class="st">&quot;.&quot;</span>)
+        bnp_levels &lt;-<span class="st"> </span><span class="kw">list</span>(
+            <span class="st">&quot;BNP - LABCORP&quot;</span> =<span class="st"> &quot;BNP&quot;</span>,
+            <span class="st">&quot;BRAIN NATRIURETIC PEPTIDE&quot;</span> =<span class="st"> &quot;BNP&quot;</span>,
+            <span class="st">&quot;BRAIN NATRIURETIC PEPTIDE     (BKR)&quot;</span> =<span class="st"> &quot;BNP&quot;</span>,
+            <span class="st">&quot;BTYPE NATRIURETIC PEPTIDE DUAP&quot;</span> =<span class="st"> &quot;BNP&quot;</span>,
+            <span class="st">&quot;PRO BRAIN NATRIURETIC PEPTIDE&quot;</span> =<span class="st"> &quot;ProBNP&quot;</span>,
+            <span class="st">&quot;PRO BRAIN NATRIURETIC PEPTIDE     (BKR)&quot;</span> =<span class="st"> &quot;ProBNP&quot;</span>,
+            <span class="st">&quot;PROBNP - LABCORP&quot;</span> =<span class="st"> &quot;ProBNP&quot;</span>
+        )
         
-        mutate_lab.date &lt;-<span class="st"> </span><span class="kw">interp</span>(<span class="op">~</span><span class="st"> </span><span class="kw">as.POSIXct</span>(a, <span class="dt">format =</span> <span class="st">&quot;%m/%d/%Y %H:%M:%S&quot;</span>, <span class="dt">tz =</span> <span class="st">&quot;America/New_York&quot;</span>),
-                              <span class="dt">a =</span> <span class="kw">as_name</span>(lab.date))
-        
-        <span class="co">#if there are Na's in the text result value these are replced with the value</span>
-        <span class="co">#in the numeric result column</span>
-        mutate_lab.value &lt;-<span class="st"> </span><span class="kw">interp</span>(<span class="op">~</span><span class="kw">ifelse</span>(<span class="kw">is.na</span>(a), Numeric.Result,a),
-                                   <span class="dt">a =</span> <span class="kw">as_name</span>(lab.value))
-        
-        <span class="co">#all entries with NA in the value column are excluded </span>
-        filter_lab.value &lt;-<span class="st"> </span><span class="kw">interp</span>(<span class="op">~</span><span class="st"> </span><span class="op">!</span><span class="kw">is.na</span>(a),
-                                   <span class="dt">a =</span> <span class="kw">as_name</span>(lab.value))
-        
-        <span class="kw">read.csv</span>(<span class="dt">file =</span> filepath, 
-                   <span class="dt">stringsAsFactors =</span> <span class="ot">FALSE</span>,
-                   <span class="dt">na.strings=</span><span class="kw">c</span>(<span class="st">&quot;&quot;</span>,<span class="st">&quot; &quot;</span>,<span class="st">&quot;  &quot;</span>, <span class="st">&quot;NA&quot;</span>, <span class="st">&quot;N/A&quot;</span>)) <span class="op">%&gt;%</span>
-<span class="st">                </span>
-<span class="st">                </span><span class="kw">rename_</span>(<span class="dt">.dots =</span> <span class="kw">setNames</span>(<span class="kw">list</span>(<span class="st">&quot;Duke.MRN&quot;</span>,
-                                      <span class="st">&quot;Specimen.Collection.Date&quot;</span>,
-                                      <span class="st">&quot;Text.Result&quot;</span>),
-                                 <span class="kw">list</span>(<span class="st">&quot;MRN&quot;</span>,
-                                      lab.date,
-                                      lab.value))) <span class="op">%&gt;%</span>
-<span class="st">                </span>
-<span class="st">                </span><span class="kw">mutate_</span>(<span class="dt">.dots =</span> <span class="kw">setNames</span>(<span class="kw">list</span>(mutate_lab.date),lab.date)) <span class="op">%&gt;%</span>
-<span class="st">                </span><span class="kw">mutate_</span>(<span class="dt">.dots =</span> <span class="kw">setNames</span>(<span class="kw">list</span>(mutate_lab.value),
-                                         lab.value)) <span class="op">%&gt;%</span>
-<span class="st">                </span><span class="kw">select</span>(<span class="op">-</span><span class="kw">c</span>(Test.Description, Numeric.Result)) <span class="op">%&gt;%</span>
-<span class="st">                </span><span class="kw">filter_</span>(<span class="dt">.dots =</span> <span class="kw">list</span>(filter_lab.value))
+        .formatted_data &lt;-<span class="st"> </span>.formatted_data <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">            </span><span class="kw">select</span>(<span class="op">-</span>Numeric.Result) <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">            </span><span class="kw">filter</span>(<span class="op">!</span><span class="kw">is.na</span>(<span class="op">!!</span>.lab_value)) <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">            </span><span class="kw">mutate</span>(<span class="dt">Test.Description =</span> <span class="kw">as.factor</span>(Test.Description)) <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">            </span><span class="kw">mutate</span>(<span class="dt">Test.Description =</span> <span class="kw">recode_factor</span>(Test.Description,
+                                                    <span class="op">!!!</span>bnp_levels)
+            )
+    } <span class="cf">else</span> {
+        .formatted_data &lt;-<span class="st"> </span>.formatted_data <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">            </span><span class="kw">select</span>(<span class="op">-</span>Test.Description, <span class="op">-</span>Numeric.Result) <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">            </span><span class="kw">filter</span>(<span class="op">!</span><span class="kw">is.na</span>(<span class="op">!!</span>.lab_value))
+    }
 }</code></pre></div>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">na1.df &lt;-<span class="st"> </span><span class="kw">read.lab.data</span>(<span class="kw">file.path</span>(data_dir, <span class="st">&quot;Lab/NA2013_2016.csv&quot;</span>), <span class="st">&quot;Na&quot;</span>)
-na2.df &lt;-<span class="st"> </span><span class="kw">read.lab.data</span>(<span class="kw">file.path</span>(data_dir, <span class="st">&quot;Lab/NA2010_2013.csv&quot;</span>), <span class="st">&quot;Na&quot;</span>)
-na3.df &lt;-<span class="st"> </span><span class="kw">read.lab.data</span>(<span class="kw">file.path</span>(data_dir, <span class="st">&quot;Lab/NA2006_2010.csv&quot;</span>), <span class="st">&quot;Na&quot;</span>)
-na4.df &lt;-<span class="st"> </span><span class="kw">read.lab.data</span>(<span class="kw">file.path</span>(data_dir, <span class="st">&quot;Lab/NA2001_2006.csv&quot;</span>), <span class="st">&quot;Na&quot;</span>)
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">na_lab_list &lt;-<span class="st"> </span><span class="kw">list</span>(<span class="st">&quot;NA2013_2016.csv&quot;</span>,
+                    <span class="st">&quot;NA2010_2013.csv&quot;</span>,
+                    <span class="st">&quot;NA2006_2010.csv&quot;</span>,
+                    <span class="st">&quot;NA2001_2006.csv&quot;</span>)
 
-na.df &lt;-<span class="st"> </span><span class="kw">rbind</span>(na1.df, na2.df, na3.df, na4.df)</code></pre></div>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">k1.df &lt;-<span class="st"> </span><span class="kw">read.lab.data</span>(<span class="kw">file.path</span>(data_dir, <span class="st">&quot;Lab/K2013_2016.csv&quot;</span>), <span class="st">&quot;K&quot;</span>)
-k2.df &lt;-<span class="st"> </span><span class="kw">read.lab.data</span>(<span class="kw">file.path</span>(data_dir, <span class="st">&quot;Lab/K2010_2013.csv&quot;</span>), <span class="st">&quot;K&quot;</span>)
-k3.df &lt;-<span class="st"> </span><span class="kw">read.lab.data</span>(<span class="kw">file.path</span>(data_dir, <span class="st">&quot;Lab/K2006_2010.csv&quot;</span>), <span class="st">&quot;K&quot;</span>)
-k4.df &lt;-<span class="st"> </span><span class="kw">read.lab.data</span>(<span class="kw">file.path</span>(data_dir, <span class="st">&quot;Lab/K2001_2006.csv&quot;</span>), <span class="st">&quot;K&quot;</span>)
+na.df &lt;-<span class="st"> </span>purrr<span class="op">::</span><span class="kw">map_df</span>(na_lab_list, read_lab_data, <span class="dt">lab =</span> Na)</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">k_lab_list &lt;-<span class="st"> </span><span class="kw">list</span>(<span class="st">&quot;K2013_2016.csv&quot;</span>,
+                   <span class="st">&quot;K2010_2013.csv&quot;</span>,
+                   <span class="st">&quot;K2006_2010.csv&quot;</span>,
+                   <span class="st">&quot;K2001_2006.csv&quot;</span>)
 
-k.df &lt;-<span class="st"> </span><span class="kw">rbind</span>(k1.df, k2.df, k3.df, k4.df)</code></pre></div>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">gfr.df &lt;-<span class="st"> </span><span class="kw">read.csv</span>(<span class="kw">file.path</span>(data_dir, <span class="st">&quot;Lab/GFR DX.csv&quot;</span>),
-                   <span class="dt">stringsAsFactors =</span> <span class="ot">FALSE</span>,
-                   <span class="dt">strip.white =</span> <span class="ot">TRUE</span>,
-                   <span class="dt">na.strings =</span> <span class="kw">c</span>(<span class="st">&quot;&quot;</span>,<span class="st">&quot; &quot;</span>,<span class="st">&quot;  &quot;</span>, <span class="st">&quot;NA&quot;</span>, <span class="st">&quot;N/A&quot;</span>)) <span class="op">%&gt;%</span>
-<span class="st">        </span>
-<span class="st">        </span><span class="kw">rename</span>(<span class="dt">MRN =</span> Duke.MRN) <span class="op">%&gt;%</span>
-<span class="st">       </span>
-<span class="st">        </span><span class="kw">mutate</span>(<span class="dt">Specimen.Collection.Date =</span> <span class="kw">as.POSIXct</span>(Specimen.Collection.Date,
-                                                     <span class="dt">format =</span> <span class="st">&quot;%m/%d/%Y %H:%M&quot;</span>)) <span class="op">%&gt;%</span>
-<span class="st">       </span>
-<span class="st">        </span><span class="kw">mutate</span>(<span class="dt">Text.Result =</span> <span class="kw">ifelse</span>(<span class="kw">is.na</span>(Text.Result),Numeric.Result,Text.Result)) <span class="op">%&gt;%</span>
-<span class="st">        </span>
-<span class="st">        </span><span class="kw">select</span>(<span class="op">-</span><span class="kw">c</span>(Test.Description, Numeric.Result)) <span class="op">%&gt;%</span>
-<span class="st">        </span>
-<span class="st">        </span><span class="kw">filter</span>(<span class="op">!</span><span class="kw">is.na</span>(Text.Result)) <span class="op">%&gt;%</span>
-<span class="st">        </span>
-<span class="st">        </span><span class="kw">rename</span>(<span class="dt">GFR.lab.Date =</span> Specimen.Collection.Date,
-               
-               <span class="dt">GFR.lab.Value =</span> Text.Result)</code></pre></div>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">bnp1.df &lt;-<span class="st"> </span><span class="kw">read.csv</span>(<span class="kw">file.path</span>(data_dir, <span class="st">&quot;Lab/BNP AND PRO BNP2.csv&quot;</span>),
-                   <span class="dt">stringsAsFactors =</span> <span class="ot">FALSE</span>,
-                   <span class="dt">strip.white =</span> <span class="ot">TRUE</span>,
-                   <span class="dt">na.strings =</span> <span class="kw">c</span>(<span class="st">&quot;&quot;</span>,<span class="st">&quot; &quot;</span>,<span class="st">&quot;  &quot;</span>, <span class="st">&quot;NA&quot;</span>, <span class="st">&quot;N/A&quot;</span>)) <span class="op">%&gt;%</span>
-<span class="st">        </span><span class="kw">rename</span>(<span class="dt">MRN =</span> Duke.MRN) <span class="op">%&gt;%</span>
-<span class="st">        </span><span class="kw">mutate</span>(<span class="dt">Specimen.Collection.Date =</span> <span class="kw">as.POSIXct</span>(Specimen.Collection.Date,
-                                                     <span class="dt">format =</span> <span class="st">&quot;%m/%d/%Y %H:%M:%S&quot;</span>, <span class="dt">tz =</span> <span class="st">&quot;America/New_York&quot;</span>)) <span class="op">%&gt;%</span>
-<span class="st">        </span><span class="kw">mutate</span>(<span class="dt">Text.Result =</span> <span class="kw">ifelse</span>(<span class="kw">is.na</span>(Text.Result),Numeric.Result,Text.Result)) <span class="op">%&gt;%</span>
-<span class="st">        </span><span class="kw">select</span>(<span class="op">-</span>Numeric.Result) <span class="op">%&gt;%</span>
-<span class="st">        </span><span class="kw">filter</span>(<span class="op">!</span><span class="kw">is.na</span>(Text.Result))
-
-bnp1.df<span class="op">$</span>Test.Description &lt;-<span class="st"> </span><span class="kw">as.factor</span>(bnp1.df<span class="op">$</span>Test.Description)
-<span class="kw">levels</span>(bnp1.df<span class="op">$</span>Test.Description) &lt;-<span class="st"> </span><span class="kw">list</span>(
-        <span class="st">&quot;BNP&quot;</span> =<span class="st"> </span><span class="kw">c</span>(<span class="st">&quot;BNP - LABCORP&quot;</span>,
-                  <span class="st">&quot;BRAIN NATRIURETIC PEPTIDE&quot;</span>,
-                  <span class="st">&quot;BRAIN NATRIURETIC PEPTIDE     (BKR)&quot;</span>,
-                  <span class="st">&quot;BTYPE NATRIURETIC PEPTIDE DUAP&quot;</span>),
-        <span class="st">&quot;ProBNP&quot;</span> =<span class="st"> </span><span class="kw">c</span>(<span class="st">&quot;PRO BRAIN NATRIURETIC PEPTIDE&quot;</span>,
-                     <span class="st">&quot;PRO BRAIN NATRIURETIC PEPTIDE     (BKR)&quot;</span>,
-                     <span class="st">&quot;PROBNP - LABCORP&quot;</span>))</code></pre></div>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">bnp.df &lt;-<span class="st"> </span>bnp1.df <span class="op">%&gt;%</span>
+k.df &lt;-<span class="st"> </span>purrr<span class="op">::</span><span class="kw">map_df</span>(k_lab_list, read_lab_data, <span class="dt">lab =</span> K)</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">gfr.df &lt;-<span class="st"> </span><span class="kw">read_lab_data</span>(<span class="st">&quot;GFR DX.csv&quot;</span>, GFR)</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">bnp_pro_bnp.df &lt;-<span class="st"> </span><span class="kw">read_lab_data</span>(<span class="st">&quot;BNP AND PRO BNP2.csv&quot;</span>, BNP)</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">bnp.df &lt;-<span class="st"> </span>bnp_pro_bnp.df <span class="op">%&gt;%</span>
 <span class="st">        </span><span class="kw">filter</span>(Test.Description <span class="op">==</span><span class="st"> &quot;BNP&quot;</span>) <span class="op">%&gt;%</span>
-<span class="st">        </span><span class="kw">rename</span>(<span class="dt">BNP.lab.Date =</span> Specimen.Collection.Date,
-               <span class="dt">BNP.lab.Value =</span> Text.Result) <span class="op">%&gt;%</span>
 <span class="st">        </span><span class="kw">select</span>(<span class="op">-</span>Test.Description)
 
-probnp.df &lt;-<span class="st"> </span>bnp1.df <span class="op">%&gt;%</span>
+probnp.df &lt;-<span class="st"> </span>bnp_pro_bnp.df <span class="op">%&gt;%</span>
 <span class="st">        </span><span class="kw">filter</span>(Test.Description <span class="op">==</span><span class="st"> &quot;ProBNP&quot;</span>) <span class="op">%&gt;%</span>
-<span class="st">        </span><span class="kw">rename</span>(<span class="dt">ProBNP.lab.Date =</span> Specimen.Collection.Date,
-               <span class="dt">ProBNP.lab.Value =</span> Text.Result) <span class="op">%&gt;%</span>
+<span class="st">        </span><span class="kw">rename</span>(<span class="dt">ProBNP.lab.Date =</span> BNP.lab.Date,
+               <span class="dt">ProBNP.lab.Value =</span> BNP.lab.Value) <span class="op">%&gt;%</span>
 <span class="st">        </span><span class="kw">select</span>(<span class="op">-</span>Test.Description)</code></pre></div>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">lab.match.fun &lt;-<span class="st"> </span><span class="cf">function</span>(x, lab) {
-        labdate &lt;-<span class="st"> </span><span class="kw">paste</span>(lab, <span class="st">&quot;lab.Date&quot;</span>, <span class="dt">sep =</span> <span class="st">&quot;.&quot;</span>)
-        labvalue &lt;-<span class="st"> </span><span class="kw">paste</span>(lab, <span class="st">&quot;lab.Value&quot;</span>, <span class="dt">sep =</span> <span class="st">&quot;.&quot;</span>)
-        labvalue.x &lt;-<span class="st"> </span><span class="kw">paste</span>(lab, <span class="st">&quot;lab.Value.x&quot;</span>, <span class="dt">sep =</span> <span class="st">&quot;.&quot;</span>)
-        
-        <span class="co">#measures the time difference in days between ecgdate and labdate</span>
-        mutate_difftime &lt;-<span class="st"> </span><span class="kw">interp</span>(<span class="op">~</span><span class="st"> </span><span class="kw">abs</span>(<span class="kw">as.numeric</span>(<span class="kw">difftime</span>(ECGDate, a, <span class="dt">units =</span> <span class="st">&quot;days&quot;</span>))),
-                                  <span class="dt">a =</span> <span class="kw">as_name</span>(labdate))
-        
-        <span class="co">#filters for the lab date that is within 30 days of</span>
-        <span class="co">#ecgdate</span>
-        labdate_filter &lt;-<span class="st"> </span><span class="kw">interp</span>(<span class="op">~</span><span class="st"> </span><span class="kw">abs</span>(<span class="kw">as.numeric</span>(<span class="kw">difftime</span>(ECGDate, a, <span class="dt">units =</span> <span class="st">&quot;days&quot;</span>))) <span class="op">&lt;=</span><span class="dv">30</span>,
-                                   <span class="dt">a =</span> <span class="kw">as_name</span>(labdate))
-        
-        <span class="co">#removes characters that prevent coercion to numerical values</span>
-        mutate_labvalue &lt;-<span class="st"> </span><span class="kw">interp</span>(<span class="op">~</span><span class="st"> </span><span class="kw">str_replace_all</span>(a, <span class="st">&quot;[,= </span><span class="ch">\\</span><span class="st">*&lt;&gt;</span><span class="ch">\\</span><span class="st">(GCANCELED</span><span class="ch">\\</span><span class="st">%]&quot;</span>,<span class="st">&quot;&quot;</span>),
-                                               <span class="dt">a =</span> <span class="kw">as_name</span>(labvalue))
-        
-        <span class="co">#coerces to numerical values</span>
-        mutate_labvalue2 &lt;-<span class="st"> </span><span class="kw">interp</span>(<span class="op">~</span><span class="st"> </span><span class="kw">as.numeric</span>(a), <span class="dt">a =</span> <span class="kw">as_name</span>(labvalue.x))
-        
-        <span class="co">#excludes all entries with NA in the labvalue column</span>
-        filter_labvalue.x &lt;-<span class="st"> </span><span class="kw">interp</span>(<span class="op">~</span><span class="st"> </span><span class="op">!</span><span class="kw">is.na</span>(a), <span class="dt">a =</span> <span class="kw">as_name</span>(labvalue.x))
-        
-        <span class="co">#starts with joining x with ecgdates dataframe</span>
-        <span class="kw">inner_join</span>(x, ecgdates.df, <span class="dt">by =</span> <span class="st">&quot;MRN&quot;</span>) <span class="op">%&gt;%</span>
-<span class="st">                </span>
-<span class="st">                </span><span class="kw">group_by</span>(MRN) <span class="op">%&gt;%</span>
-<span class="st">                </span>
-<span class="st">                </span><span class="kw">mutate_</span>(<span class="dt">.dots =</span> <span class="kw">setNames</span>(<span class="kw">list</span>(mutate_difftime), <span class="st">&quot;diff&quot;</span>)) <span class="op">%&gt;%</span>
-<span class="st">                </span>
-<span class="st">                </span><span class="co">#filters for the labvalue closest in time to ecgdate</span>
-<span class="st">                </span><span class="kw">filter</span>(diff <span class="op">==</span><span class="st"> </span><span class="kw">min</span>(diff)) <span class="op">%&gt;%</span>
-<span class="st">                </span>
-<span class="st">                </span><span class="kw">filter_</span>(<span class="dt">.dots =</span> labdate_filter) <span class="op">%&gt;%</span>
-<span class="st">                </span>
-<span class="st">                </span><span class="kw">slice</span>(<span class="dv">1</span>) <span class="op">%&gt;%</span>
-<span class="st">                </span>
-<span class="st">                </span><span class="kw">ungroup</span>() <span class="op">%&gt;%</span>
-<span class="st">                </span>
-<span class="st">                </span><span class="kw">mutate_</span>(<span class="dt">.dots =</span> <span class="kw">setNames</span>(<span class="kw">list</span>(mutate_labvalue), labvalue.x)) <span class="op">%&gt;%</span>
-<span class="st">                </span>
-<span class="st">                </span><span class="kw">mutate_</span>(<span class="dt">.dots =</span> <span class="kw">setNames</span>(<span class="kw">list</span>(mutate_labvalue2), labvalue.x)) <span class="op">%&gt;%</span>
-<span class="st">                </span>
-<span class="st">                </span><span class="kw">select</span>(<span class="op">-</span><span class="kw">c</span>(diff,ECGDate)) <span class="op">%&gt;%</span>
-<span class="st">                </span>
-<span class="st">                </span><span class="kw">filter_</span>(<span class="dt">.dots =</span> filter_labvalue.x)
+<ul>
+<li>Filters for the labvalue closest in time to ecgdate</li>
+<li>Filters for the lab date that is within 30 days of ecgdate</li>
+</ul>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">match_mrn_lab &lt;-<span class="st"> </span><span class="cf">function</span>(x, lab) {
+    .lab &lt;-<span class="st"> </span><span class="kw">enquo</span>(lab)
+    .lab_date &lt;-<span class="st"> </span><span class="kw">paste0</span>(<span class="kw">quo_name</span>(.lab), <span class="st">&quot;.lab.Date&quot;</span>)
+    
+    .matched_data &lt;-<span class="st"> </span><span class="kw">inner_join</span>(ecgdates.df, x, <span class="dt">by =</span> <span class="st">&quot;MRN&quot;</span>)
+    
+    
+    .formatted_data &lt;-<span class="st"> </span>.matched_data <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">        </span><span class="kw">group_by</span>(MRN) <span class="op">%&gt;%</span>
+<span class="st">        </span><span class="kw">mutate</span>(<span class="dt">time_diff =</span> 
+                   <span class="kw">abs</span>(
+                       <span class="kw">as.numeric</span>(
+                           <span class="kw">difftime</span>(
+                               ECGDate,
+                               .data[[<span class="op">!!</span>.lab_date]],
+                               <span class="dt">units =</span> <span class="st">&quot;days&quot;</span>)
+                       )
+                   )
+        ) <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">        </span><span class="kw">filter</span>(time_diff <span class="op">==</span><span class="st"> </span><span class="kw">min</span>(time_diff, <span class="dt">na.rm =</span> <span class="ot">TRUE</span>)) <span class="op">%&gt;%</span>
+<span class="st">        </span><span class="kw">filter</span>(time_diff <span class="op">&lt;=</span><span class="st"> </span><span class="dv">30</span>) <span class="op">%&gt;%</span>
+<span class="st">        </span><span class="kw">slice</span>(<span class="dv">1</span>) <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">        </span><span class="kw">ungroup</span>() <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">        </span><span class="kw">select</span>(<span class="op">-</span>time_diff, <span class="op">-</span>ECGDate)
 }</code></pre></div>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">na.df &lt;-<span class="st"> </span><span class="kw">lab.match.fun</span>(na.df, <span class="st">&quot;Na&quot;</span>)
-k.df &lt;-<span class="st"> </span><span class="kw">lab.match.fun</span>(k.df, <span class="st">&quot;K&quot;</span>)
-bnp.df &lt;-<span class="st"> </span><span class="kw">lab.match.fun</span>(bnp.df, <span class="st">&quot;BNP&quot;</span>)
-probnp.df &lt;-<span class="st"> </span><span class="kw">lab.match.fun</span>(probnp.df, <span class="st">&quot;ProBNP&quot;</span>)
-gfr.df &lt;-<span class="st"> </span><span class="kw">lab.match.fun</span>(gfr.df, <span class="st">&quot;GFR&quot;</span>)</code></pre></div>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">main.df4 &lt;-<span class="st"> </span><span class="kw">left_join</span>(main.df3, na.df, <span class="dt">by =</span> <span class="st">&quot;MRN&quot;</span>) <span class="op">%&gt;%</span>
-<span class="st">        </span><span class="kw">left_join</span>(k.df, <span class="dt">by =</span> <span class="st">&quot;MRN&quot;</span>) <span class="op">%&gt;%</span>
-<span class="st">        </span><span class="kw">left_join</span>(bnp.df, <span class="dt">by =</span> <span class="st">&quot;MRN&quot;</span>) <span class="op">%&gt;%</span>
-<span class="st">        </span><span class="kw">left_join</span>(probnp.df, <span class="dt">by =</span> <span class="st">&quot;MRN&quot;</span>) <span class="op">%&gt;%</span>
-<span class="st">        </span><span class="kw">left_join</span>(gfr.df, <span class="dt">by =</span> <span class="st">&quot;MRN&quot;</span>)</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">na.df &lt;-<span class="st"> </span><span class="kw">match_mrn_lab</span>(na.df, Na)
+k.df &lt;-<span class="st"> </span><span class="kw">match_mrn_lab</span>(k.df, K)
+bnp.df &lt;-<span class="st"> </span><span class="kw">match_mrn_lab</span>(bnp.df, BNP)
+probnp.df &lt;-<span class="st"> </span><span class="kw">match_mrn_lab</span>(probnp.df, ProBNP)
+gfr.df &lt;-<span class="st"> </span><span class="kw">match_mrn_lab</span>(gfr.df, GFR)</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">combine_lab_list &lt;-<span class="st"> </span><span class="kw">list</span>(
+    main.df3,
+    na.df,
+    k.df,
+    bnp.df,
+    probnp.df,
+    gfr.df
+)
+
+main.df4 &lt;-<span class="st"> </span>purrr<span class="op">::</span><span class="kw">reduce</span>(combine_lab_list, left_join, <span class="dt">by =</span> <span class="st">&quot;MRN&quot;</span>)</code></pre></div>
 </div>
 <div id="data-processing" class="section level2">
 <h2>Data processing</h2>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co">#drops unused factor levels</span>
-main.df5 &lt;-<span class="st"> </span><span class="kw">droplevels</span>(main.df4)</code></pre></div>
 <div id="exclusion-criteria" class="section level3">
 <h3>Exclusion criteria</h3>
 <ul>
 <li>Patients under 18 years of age</li>
 <li>QRSduration &lt;60ms</li>
 </ul>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">main.df6 &lt;-<span class="st"> </span>main.df5 <span class="op">%&gt;%</span>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">main.df4 &lt;-<span class="st"> </span>main.df4 <span class="op">%&gt;%</span>
 <span class="st">        </span>
-<span class="st">        </span><span class="kw">filter</span>(Age.at.ECG <span class="op">&gt;=</span><span class="dv">18</span>,
+<span class="st">        </span><span class="kw">filter</span>(Age.at.ECG <span class="op">&gt;=</span><span class="st"> </span><span class="dv">18</span>,
                
-               QRSDur <span class="op">&gt;=</span><span class="dv">60</span>)</code></pre></div>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">main.df6 &lt;-<span class="st"> </span>main.df6 <span class="op">%&gt;%</span>
+               QRSDur <span class="op">&gt;=</span><span class="st"> </span><span class="dv">60</span>)</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">main.df5 &lt;-<span class="st"> </span>main.df4 <span class="op">%&gt;%</span>
 <span class="st">        </span><span class="kw">mutate</span>(<span class="dt">RBBB =</span> <span class="kw">if_else</span>(RBBB <span class="op">==</span><span class="st"> </span><span class="dv">1</span> <span class="op">&amp;</span><span class="st"> </span>QRSDur <span class="op">&gt;=</span><span class="st"> </span><span class="dv">120</span>,
                                <span class="dt">true  =</span> <span class="dv">1</span>,
                                <span class="dt">false =</span> <span class="dv">0</span>),
                
-               <span class="dt">RBBB_LAFB =</span> <span class="kw">if_else</span>(RBBB <span class="op">==</span><span class="st"> </span><span class="dv">1</span> <span class="op">&amp;</span><span class="st"> </span>LAFB <span class="op">==</span><span class="st"> </span><span class="dv">1</span>,
+               <span class="dt">RBBB_LAFB =</span> <span class="kw">if_else</span>(RBBB <span class="op">==</span><span class="st"> </span><span class="dv">1</span> <span class="op">&amp;</span><span class="st"> </span>LAFB <span class="op">==</span><span class="st"> </span><span class="dv">1</span> <span class="op">&amp;</span><span class="st"> </span>(AXIS <span class="op">&lt;=</span><span class="st"> </span><span class="op">-</span><span class="dv">30</span> <span class="op">&amp;</span><span class="st"> </span>AXIS <span class="op">&gt;=</span><span class="st"> </span><span class="op">-</span><span class="dv">89</span>),
                                     <span class="dt">true  =</span> <span class="dv">1</span>,
                                     <span class="dt">false =</span> <span class="dv">0</span>),
                
-               <span class="dt">RBBB_LPFB =</span> <span class="kw">if_else</span>(RBBB <span class="op">==</span><span class="st"> </span><span class="dv">1</span> <span class="op">&amp;</span><span class="st"> </span>LPFB <span class="op">==</span><span class="st"> </span><span class="dv">1</span>,
+               <span class="dt">RBBB_LPFB =</span> <span class="kw">if_else</span>(RBBB <span class="op">==</span><span class="st"> </span><span class="dv">1</span> <span class="op">&amp;</span><span class="st"> </span>LPFB <span class="op">==</span><span class="st"> </span><span class="dv">1</span> <span class="op">&amp;</span><span class="st"> </span>(AXIS <span class="op">&gt;=</span><span class="st"> </span><span class="dv">110</span> <span class="op">&amp;</span><span class="st"> </span>AXIS <span class="op">&lt;=</span><span class="st"> </span><span class="dv">180</span>),
                                     <span class="dt">true  =</span> <span class="dv">1</span>,
                                     <span class="dt">false =</span> <span class="dv">0</span>),
                
@@ -837,11 +810,11 @@ main.df5 &lt;-<span class="st"> </span><span class="kw">droplevels</span>(main.d
                                <span class="dt">true  =</span> <span class="dv">1</span>,
                                <span class="dt">false =</span> <span class="dv">0</span>),
                
-               <span class="dt">LAFB =</span> <span class="kw">if_else</span>(LAFB <span class="op">==</span><span class="st"> </span><span class="dv">1</span> <span class="op">&amp;</span><span class="st"> </span>QRSDur <span class="op">&lt;</span><span class="dv">120</span> <span class="op">&amp;</span><span class="st"> </span>IVCD <span class="op">==</span><span class="st"> </span><span class="dv">0</span>,
+               <span class="dt">LAFB =</span> <span class="kw">if_else</span>(LAFB <span class="op">==</span><span class="st"> </span><span class="dv">1</span> <span class="op">&amp;</span><span class="st"> </span>QRSDur <span class="op">&lt;</span><span class="dv">120</span> <span class="op">&amp;</span><span class="st"> </span>IVCD <span class="op">==</span><span class="st"> </span><span class="dv">0</span> <span class="op">&amp;</span><span class="st"> </span>(AXIS <span class="op">&lt;=</span><span class="st"> </span><span class="op">-</span><span class="dv">30</span> <span class="op">&amp;</span><span class="st"> </span>AXIS <span class="op">&gt;=</span><span class="st"> </span><span class="op">-</span><span class="dv">89</span>),
                                <span class="dt">true  =</span> <span class="dv">1</span>,
                                <span class="dt">false =</span> <span class="dv">0</span>),
                
-               <span class="dt">LPFB =</span> <span class="kw">if_else</span>(LPFB <span class="op">==</span><span class="st"> </span><span class="dv">1</span> <span class="op">&amp;</span><span class="st"> </span>QRSDur <span class="op">&lt;</span><span class="dv">120</span> <span class="op">&amp;</span><span class="st"> </span>IVCD <span class="op">==</span><span class="st"> </span><span class="dv">0</span>,
+               <span class="dt">LPFB =</span> <span class="kw">if_else</span>(LPFB <span class="op">==</span><span class="st"> </span><span class="dv">1</span> <span class="op">&amp;</span><span class="st"> </span>QRSDur <span class="op">&lt;</span><span class="dv">120</span> <span class="op">&amp;</span><span class="st"> </span>IVCD <span class="op">==</span><span class="st"> </span><span class="dv">0</span> <span class="op">&amp;</span><span class="st"> </span>(AXIS <span class="op">&gt;=</span><span class="st"> </span><span class="dv">110</span> <span class="op">&amp;</span><span class="st"> </span>AXIS <span class="op">&lt;=</span><span class="st"> </span><span class="dv">180</span>),
                                <span class="dt">true  =</span> <span class="dv">1</span>,
                                <span class="dt">false =</span> <span class="dv">0</span>),
                
@@ -856,8 +829,7 @@ main.df5 &lt;-<span class="st"> </span><span class="kw">droplevels</span>(main.d
 <span class="st">                                           </span>QRSDur <span class="op">&lt;</span><span class="st"> </span><span class="dv">120</span>,
                                            
                                            <span class="dt">true  =</span> <span class="dv">1</span>,
-                                           <span class="dt">false=</span> <span class="dv">0</span>))</code></pre></div>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">main.df6 &lt;-<span class="st"> </span><span class="kw">droplevels</span>(main.df6)</code></pre></div>
+                                           <span class="dt">false =</span> <span class="dv">0</span>))</code></pre></div>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">replace_na &lt;-<span class="st"> </span><span class="cf">function</span>(x) {
         x[<span class="kw">is.na</span>(x)] &lt;-<span class="st"> </span><span class="dv">0</span>
         x
@@ -878,11 +850,11 @@ main.df5 &lt;-<span class="st"> </span><span class="kw">droplevels</span>(main.d
                     <span class="st">&quot;ACEI.Rx&quot;</span>,
                     <span class="st">&quot;Amiodarone.Rx&quot;</span>,
                     <span class="st">&quot;BB.Rx&quot;</span>)</code></pre></div>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">main.df6 &lt;-<span class="st"> </span>main.df6 <span class="op">%&gt;%</span>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">main.df5 &lt;-<span class="st"> </span>main.df5 <span class="op">%&gt;%</span>
 <span class="st">        </span><span class="kw">mutate_at</span>(fix_na_columns,as.numeric) <span class="op">%&gt;%</span>
 <span class="st">        </span><span class="kw">mutate_at</span>(fix_na_columns,replace_na)</code></pre></div>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co"># patients without ecg classification or multiple entries are excluded</span>
-promise &lt;-<span class="st"> </span>main.df6 <span class="op">%&gt;%</span>
+main.df6 &lt;-<span class="st"> </span>main.df5 <span class="op">%&gt;%</span>
 <span class="st">        </span><span class="kw">rowwise</span>() <span class="op">%&gt;%</span>
 <span class="st">        </span><span class="kw">mutate</span>(<span class="dt">n_entries =</span> <span class="kw">sum</span>(Normal_conduction,
                                IVCD,
@@ -896,6 +868,8 @@ promise &lt;-<span class="st"> </span>main.df6 <span class="op">%&gt;%</span>
 <span class="st">        </span><span class="kw">filter</span>(n_entries <span class="op">==</span><span class="st"> </span><span class="dv">1</span>) <span class="op">%&gt;%</span>
 <span class="st">        </span><span class="kw">select</span>(<span class="op">-</span>n_entries) <span class="op">%&gt;%</span>
 <span class="st">        </span><span class="kw">ungroup</span>()</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">main.df6<span class="op">$</span>filepath &lt;-<span class="st"> </span><span class="kw">basename</span>(main.df6<span class="op">$</span>filepath)</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">promise &lt;-<span class="st"> </span><span class="kw">droplevels</span>(main.df6)</code></pre></div>
 </div>
 </div>
 

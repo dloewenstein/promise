@@ -23,10 +23,17 @@ You can install promise from github with:
 devtools::install_github("dloewenstein/promise")
 ```
 
+You can install promise from Anaconda.org with:
+
+```shell
+conda install -c dloewenstein r-promise
+```
+
 ## Example
 
-This is a basic example which shows you how to solve a common problem:
+In R
 
-```{r example}
-## basic example code
+```{r example, eval = FALSE}
+library("promise")
+data(promise)
 ```
