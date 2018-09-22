@@ -26,12 +26,8 @@ First we load all the needed packages.
 
 ```{r}
 library(dplyr)
-library(readr)
-library(lazyeval)
 library(stringr)
-library(xml2)
 library(purrr)
-library(data.table)
 ```
 
 All the .xml ECG files have already been processed. You can read about the process [here](LP-xml_to_dataframe.html)
@@ -509,7 +505,7 @@ read_rx_data <- function(file_name, abb_rx, patient = c("in", "out")){
                          na.strings = c(""," ","  ", "NA", "N/A"))
     
     if (patient[1] == "in") {
-        .rx_name <- quo_name(.rx)
+        .rx_name <- paste0(quo_name(.rx), ".Rx.Name")
         .rx_start_date <- paste0(quo_name(.rx), ".Rx.Start")
         .rx_end_date   <- paste0(quo_name(.rx), ".Rx.End")
         
@@ -526,7 +522,7 @@ read_rx_data <- function(file_name, abb_rx, patient = c("in", "out")){
                                                   tz = "America/New_York")
             )
     } else if (patient[1] == "out") {
-        .rx_name <- paste0(quo_name(.rx), ".Rx.OMR")
+        .rx_name <- paste0(quo_name(.rx), ".Rx.OMR.Name")
         .rx_date <- paste0(quo_name(.rx), ".Rx.OMR.Date")
         
         
@@ -675,10 +671,49 @@ main.df3 <- purrr::reduce(combine_rx_list, left_join, by = "MRN")
 
 ```
 
+```{r}
+#' Coalesce duplicated Rx columns
+#'
+#' The matching of MRN and Rx created .Rx.x and .Rx.y indicator columns, this merges those.
+#'
+#' @param abb_rx A \code{character} Rx name
+#' @param x A \code{data.frame}
+#'
+#' @return
+#'
+#' @examples
+coalesce_rx_columns <- function(abb_rx, x){
+    .rx_x <- paste0(abb_rx, ".Rx.x")
+    .rx_y <- paste0(abb_rx, ".Rx.y")
+    .rx_name <- paste0(abb_rx, ".Rx")
+    
+    .formatted_data <- x %>% 
+        mutate(!!.rx_name := coalesce(.data[[!!.rx_x]], 
+                                      .data[[!!.rx_y]])
+               ) %>% 
+        select(-!!.rx_x, -!!.rx_y)
+}
+```
+
+
+```{r}
+coalesce_list <- list(
+    "ClassIII",
+    "ClassIc",
+    "ACEI",
+    "Amiodarone",
+    "BB")
+
+for(rx in coalesce_list){
+    main.df3 <- coalesce_rx_columns(rx, main.df3)
+}
+```
+
+
 ## Lab data
 
 ```{r}
-read_lab_data <- function(file_name, lab){
+read_lab_data <- function(file_name, lab) {
     .lab <- enquo(lab)
     .lab_date <- paste0(quo_name(.lab), ".lab.Date")
     .lab_value <- paste0(quo_name(.lab), ".lab.Value")
@@ -688,207 +723,148 @@ read_lab_data <- function(file_name, lab){
     
     .lab_data <- read.csv(.path,
                           stringsAsFactors = FALSE,
-                          na.strings = c(""," ","  ", "NA", "N/A")
+                          na.strings = c(""," ","  ", "NA", "N/A", 
+                                         "CANCELED", "*H", "*", "**", 
+                                         "***", "*******")
                           )
     
     .formatted_data <- .lab_data %>% 
         rename(MRN = Duke.MRN,
                !!.lab_date := Specimen.Collection.Date,
                !!.lab_value := Text.Result) %>% 
-        mutate()
+        mutate(!!.lab_date := as.POSIXct(.data[[!!.lab_date]],
+                                         tryFormats = c(
+                                             "%m/%d/%Y %H:%M:%S",
+                                             "%m/%d/%Y %H:%M"),
+                                         tz = "America/New_York")
+        ) %>% 
+        mutate(!!.lab_value := stringr::str_remove_all(.data[[!!.lab_value]], pattern = "<|>|="))
+    
+    missing_text_result_index <- which(is.na(.formatted_data[[.lab_value]]) &
+                                     !is.na(.formatted_data[["Numeric.Result"]]))
+    
+    replacement_values <- as.integer(.formatted_data[missing_text_result_index, "Numeric.Result"])
+    
+    .formatted_data[missing_text_result_index, .lab_value] <- replacement_values
+    
+    if (quo_name(.lab) == "BNP") {
+        
+        bnp_levels <- list(
+            "BNP - LABCORP" = "BNP",
+            "BRAIN NATRIURETIC PEPTIDE" = "BNP",
+            "BRAIN NATRIURETIC PEPTIDE     (BKR)" = "BNP",
+            "BTYPE NATRIURETIC PEPTIDE DUAP" = "BNP",
+            "PRO BRAIN NATRIURETIC PEPTIDE" = "ProBNP",
+            "PRO BRAIN NATRIURETIC PEPTIDE     (BKR)" = "ProBNP",
+            "PROBNP - LABCORP" = "ProBNP"
+        )
+        
+        .formatted_data <- .formatted_data %>% 
+            select(-Numeric.Result) %>% 
+            filter(!is.na(!!.lab_value)) %>% 
+            mutate(Test.Description = as.factor(Test.Description)) %>% 
+            mutate(Test.Description = recode_factor(Test.Description,
+                                                    !!!bnp_levels)
+            )
+    } else {
+        .formatted_data <- .formatted_data %>% 
+            select(-Test.Description, -Numeric.Result) %>% 
+            filter(!is.na(!!.lab_value))
+    }
 }
 ```
 
-
 ```{r}
-read.lab.data <- function(filepath, lab) {
-        
-        lab.date <- paste(lab, "lab.Date", sep = ".")
-        lab.value <- paste(lab, "lab.Value", sep = ".")
-        
-        mutate_lab.date <- interp(~ as.POSIXct(a, format = "%m/%d/%Y %H:%M:%S", tz = "America/New_York"),
-                              a = as_name(lab.date))
-        
-        #if there are Na's in the text result value these are replced with the value
-        #in the numeric result column
-        mutate_lab.value <- interp(~ifelse(is.na(a), Numeric.Result,a),
-                                   a = as_name(lab.value))
-        
-        #all entries with NA in the value column are excluded 
-        filter_lab.value <- interp(~ !is.na(a),
-                                   a = as_name(lab.value))
-        
-        read.csv(file = filepath, 
-                   stringsAsFactors = FALSE,
-                   na.strings=c(""," ","  ", "NA", "N/A")) %>%
-                
-                rename_(.dots = setNames(list("Duke.MRN",
-                                      "Specimen.Collection.Date",
-                                      "Text.Result"),
-                                 list("MRN",
-                                      lab.date,
-                                      lab.value))) %>%
-                
-                mutate_(.dots = setNames(list(mutate_lab.date),lab.date)) %>%
-                mutate_(.dots = setNames(list(mutate_lab.value),
-                                         lab.value)) %>%
-                select(-c(Test.Description, Numeric.Result)) %>%
-                filter_(.dots = list(filter_lab.value))
-}
+na_lab_list <- list("NA2013_2016.csv",
+                    "NA2010_2013.csv",
+                    "NA2006_2010.csv",
+                    "NA2001_2006.csv")
+
+na.df <- purrr::map_df(na_lab_list, read_lab_data, lab = Na)
 ```
 
 ```{r}
-na1.df <- read.lab.data(file.path(data_dir, "Lab/NA2013_2016.csv"), "Na")
-na2.df <- read.lab.data(file.path(data_dir, "Lab/NA2010_2013.csv"), "Na")
-na3.df <- read.lab.data(file.path(data_dir, "Lab/NA2006_2010.csv"), "Na")
-na4.df <- read.lab.data(file.path(data_dir, "Lab/NA2001_2006.csv"), "Na")
+k_lab_list <- list("K2013_2016.csv",
+                   "K2010_2013.csv",
+                   "K2006_2010.csv",
+                   "K2001_2006.csv")
 
-na.df <- rbind(na1.df, na2.df, na3.df, na4.df)
+k.df <- purrr::map_df(k_lab_list, read_lab_data, lab = K)
 ```
 
 ```{r}
-k1.df <- read.lab.data(file.path(data_dir, "Lab/K2013_2016.csv"), "K")
-k2.df <- read.lab.data(file.path(data_dir, "Lab/K2010_2013.csv"), "K")
-k3.df <- read.lab.data(file.path(data_dir, "Lab/K2006_2010.csv"), "K")
-k4.df <- read.lab.data(file.path(data_dir, "Lab/K2001_2006.csv"), "K")
-
-k.df <- rbind(k1.df, k2.df, k3.df, k4.df)
+gfr.df <- read_lab_data("GFR DX.csv", GFR)
 ```
 
 ```{r}
-gfr.df <- read.csv(file.path(data_dir, "Lab/GFR DX.csv"),
-                   stringsAsFactors = FALSE,
-                   strip.white = TRUE,
-                   na.strings = c(""," ","  ", "NA", "N/A")) %>%
-        
-        rename(MRN = Duke.MRN) %>%
-       
-        mutate(Specimen.Collection.Date = as.POSIXct(Specimen.Collection.Date,
-                                                     format = "%m/%d/%Y %H:%M")) %>%
-       
-        mutate(Text.Result = ifelse(is.na(Text.Result),Numeric.Result,Text.Result)) %>%
-        
-        select(-c(Test.Description, Numeric.Result)) %>%
-        
-        filter(!is.na(Text.Result)) %>%
-        
-        rename(GFR.lab.Date = Specimen.Collection.Date,
-               
-               GFR.lab.Value = Text.Result)
-```
-
-
-```{r}
-bnp1.df <- read.csv(file.path(data_dir, "Lab/BNP AND PRO BNP2.csv"),
-                   stringsAsFactors = FALSE,
-                   strip.white = TRUE,
-                   na.strings = c(""," ","  ", "NA", "N/A")) %>%
-        rename(MRN = Duke.MRN) %>%
-        mutate(Specimen.Collection.Date = as.POSIXct(Specimen.Collection.Date,
-                                                     format = "%m/%d/%Y %H:%M:%S", tz = "America/New_York")) %>%
-        mutate(Text.Result = ifelse(is.na(Text.Result),Numeric.Result,Text.Result)) %>%
-        select(-Numeric.Result) %>%
-        filter(!is.na(Text.Result))
-
-bnp1.df$Test.Description <- as.factor(bnp1.df$Test.Description)
-levels(bnp1.df$Test.Description) <- list(
-        "BNP" = c("BNP - LABCORP",
-                  "BRAIN NATRIURETIC PEPTIDE",
-                  "BRAIN NATRIURETIC PEPTIDE     (BKR)",
-                  "BTYPE NATRIURETIC PEPTIDE DUAP"),
-        "ProBNP" = c("PRO BRAIN NATRIURETIC PEPTIDE",
-                     "PRO BRAIN NATRIURETIC PEPTIDE     (BKR)",
-                     "PROBNP - LABCORP"))
+bnp_pro_bnp.df <- read_lab_data("BNP AND PRO BNP2.csv", BNP)
 ```
 
 ```{r}
-bnp.df <- bnp1.df %>%
+bnp.df <- bnp_pro_bnp.df %>%
         filter(Test.Description == "BNP") %>%
-        rename(BNP.lab.Date = Specimen.Collection.Date,
-               BNP.lab.Value = Text.Result) %>%
         select(-Test.Description)
 
-probnp.df <- bnp1.df %>%
+probnp.df <- bnp_pro_bnp.df %>%
         filter(Test.Description == "ProBNP") %>%
-        rename(ProBNP.lab.Date = Specimen.Collection.Date,
-               ProBNP.lab.Value = Text.Result) %>%
+        rename(ProBNP.lab.Date = BNP.lab.Date,
+               ProBNP.lab.Value = BNP.lab.Value) %>%
         select(-Test.Description)
 ```
 
+- Filters for the labvalue closest in time to ecgdate
+- Filters for the lab date that is within 30 days of ecgdate
 
 ```{r}
-lab.match.fun <- function(x, lab) {
-        labdate <- paste(lab, "lab.Date", sep = ".")
-        labvalue <- paste(lab, "lab.Value", sep = ".")
-        labvalue.x <- paste(lab, "lab.Value.x", sep = ".")
-        
-        #measures the time difference in days between ecgdate and labdate
-        mutate_difftime <- interp(~ abs(as.numeric(difftime(ECGDate, a, units = "days"))),
-                                  a = as_name(labdate))
-        
-        #filters for the lab date that is within 30 days of
-        #ecgdate
-        labdate_filter <- interp(~ abs(as.numeric(difftime(ECGDate, a, units = "days"))) <=30,
-                                   a = as_name(labdate))
-        
-        #removes characters that prevent coercion to numerical values
-        mutate_labvalue <- interp(~ str_replace_all(a, "[,= \\*<>\\(GCANCELED\\%]",""),
-                                               a = as_name(labvalue))
-        
-        #coerces to numerical values
-        mutate_labvalue2 <- interp(~ as.numeric(a), a = as_name(labvalue.x))
-        
-        #excludes all entries with NA in the labvalue column
-        filter_labvalue.x <- interp(~ !is.na(a), a = as_name(labvalue.x))
-        
-        #starts with joining x with ecgdates dataframe
-        inner_join(x, ecgdates.df, by = "MRN") %>%
-                
-                group_by(MRN) %>%
-                
-                mutate_(.dots = setNames(list(mutate_difftime), "diff")) %>%
-                
-                #filters for the labvalue closest in time to ecgdate
-                filter(diff == min(diff)) %>%
-                
-                filter_(.dots = labdate_filter) %>%
-                
-                slice(1) %>%
-                
-                ungroup() %>%
-                
-                mutate_(.dots = setNames(list(mutate_labvalue), labvalue.x)) %>%
-                
-                mutate_(.dots = setNames(list(mutate_labvalue2), labvalue.x)) %>%
-                
-                select(-c(diff,ECGDate)) %>%
-                
-                filter_(.dots = filter_labvalue.x)
+match_mrn_lab <- function(x, lab) {
+    .lab <- enquo(lab)
+    .lab_date <- paste0(quo_name(.lab), ".lab.Date")
+    
+    .matched_data <- inner_join(ecgdates.df, x, by = "MRN")
+    
+    
+    .formatted_data <- .matched_data %>% 
+        group_by(MRN) %>%
+        mutate(time_diff = 
+                   abs(
+                       as.numeric(
+                           difftime(
+                               ECGDate,
+                               .data[[!!.lab_date]],
+                               units = "days")
+                       )
+                   )
+        ) %>% 
+        filter(time_diff == min(time_diff, na.rm = TRUE)) %>%
+        filter(time_diff <= 30) %>%
+        slice(1) %>% 
+        ungroup() %>% 
+        select(-time_diff, -ECGDate)
 }
 ```
 
 ```{r}
-na.df <- lab.match.fun(na.df, "Na")
-k.df <- lab.match.fun(k.df, "K")
-bnp.df <- lab.match.fun(bnp.df, "BNP")
-probnp.df <- lab.match.fun(probnp.df, "ProBNP")
-gfr.df <- lab.match.fun(gfr.df, "GFR")
+na.df <- match_mrn_lab(na.df, Na)
+k.df <- match_mrn_lab(k.df, K)
+bnp.df <- match_mrn_lab(bnp.df, BNP)
+probnp.df <- match_mrn_lab(probnp.df, ProBNP)
+gfr.df <- match_mrn_lab(gfr.df, GFR)
 ```
 
 ```{r}
-main.df4 <- left_join(main.df3, na.df, by = "MRN") %>%
-        left_join(k.df, by = "MRN") %>%
-        left_join(bnp.df, by = "MRN") %>%
-        left_join(probnp.df, by = "MRN") %>%
-        left_join(gfr.df, by = "MRN")
+combine_lab_list <- list(
+    main.df3,
+    na.df,
+    k.df,
+    bnp.df,
+    probnp.df,
+    gfr.df
+)
+
+main.df4 <- purrr::reduce(combine_lab_list, left_join, by = "MRN")
 ```
 
 ## Data processing
-
-```{r}
-#drops unused factor levels
-main.df5 <- droplevels(main.df4)
-```
 
 ### Exclusion criteria
 
@@ -897,24 +873,24 @@ main.df5 <- droplevels(main.df4)
 
 ```{r}
 
-main.df6 <- main.df5 %>%
+main.df4 <- main.df4 %>%
         
-        filter(Age.at.ECG >=18,
+        filter(Age.at.ECG >= 18,
                
-               QRSDur >=60)
+               QRSDur >= 60)
 ```
 
 ```{r}
-main.df6 <- main.df6 %>%
+main.df5 <- main.df4 %>%
         mutate(RBBB = if_else(RBBB == 1 & QRSDur >= 120,
                                true  = 1,
                                false = 0),
                
-               RBBB_LAFB = if_else(RBBB == 1 & LAFB == 1,
+               RBBB_LAFB = if_else(RBBB == 1 & LAFB == 1 & (AXIS <= -30 & AXIS >= -89),
                                     true  = 1,
                                     false = 0),
                
-               RBBB_LPFB = if_else(RBBB == 1 & LPFB == 1,
+               RBBB_LPFB = if_else(RBBB == 1 & LPFB == 1 & (AXIS >= 110 & AXIS <= 180),
                                     true  = 1,
                                     false = 0),
                
@@ -934,11 +910,11 @@ main.df6 <- main.df6 %>%
                                true  = 1,
                                false = 0),
                
-               LAFB = if_else(LAFB == 1 & QRSDur <120 & IVCD == 0,
+               LAFB = if_else(LAFB == 1 & QRSDur <120 & IVCD == 0 & (AXIS <= -30 & AXIS >= -89),
                                true  = 1,
                                false = 0),
                
-               LPFB = if_else(LPFB == 1 & QRSDur <120 & IVCD == 0,
+               LPFB = if_else(LPFB == 1 & QRSDur <120 & IVCD == 0 & (AXIS >= 110 & AXIS <= 180),
                                true  = 1,
                                false = 0),
                
@@ -953,13 +929,9 @@ main.df6 <- main.df6 %>%
                                            QRSDur < 120,
                                            
                                            true  = 1,
-                                           false= 0))
+                                           false = 0))
                
                
-```
-
-```{r}
-main.df6 <- droplevels(main.df6)
 ```
 
 ```{r}
@@ -990,14 +962,14 @@ fix_na_columns <- c("AF",
 
 
 ```{r}
-main.df6 <- main.df6 %>%
+main.df5 <- main.df5 %>%
         mutate_at(fix_na_columns,as.numeric) %>%
         mutate_at(fix_na_columns,replace_na)
 ```
 
 ```{r}
 # patients without ecg classification or multiple entries are excluded
-promise <- main.df6 %>%
+main.df6 <- main.df5 %>%
         rowwise() %>%
         mutate(n_entries = sum(Normal_conduction,
                                IVCD,
@@ -1012,3 +984,13 @@ promise <- main.df6 %>%
         select(-n_entries) %>%
         ungroup()
 ```
+
+```{r}
+main.df6$filepath <- basename(main.df6$filepath)
+```
+
+
+```{r}
+promise <- droplevels(main.df6)
+```
+
