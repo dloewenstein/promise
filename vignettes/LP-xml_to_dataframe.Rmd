@@ -5,12 +5,11 @@ date: '`r Sys.Date()`'
 slug: promise
 show_toc: yes
 output:
-  knitr:::html_vignette: ~
-  number_sections: yes
+  rmarkdown:::html_vignette
 vignette: >
   %\VignetteIndexEntry{Reading xml ECG and processing diagnosis}
-  %\VignetteEngine{knitr::rmarkdown_notangle}
-  %\VignetteEncoding{UTF-8}
+  %\VignetteEngine{knitr::rmarkdown}
+  \usepackage[utf8]{inputenc}
 ---
 
 ```{r setup, purl=FALSE}
@@ -36,7 +35,7 @@ xmlToDataframe <- function(filepath, use_progress=TRUE) {
 if (use_progress) {
 pb$tick()
 }
-    
+
 # Read the xml document.
 
 xml <- xml2::read_xml(filepath)
@@ -248,7 +247,3 @@ ecg <- ecg[!is.na(QRSDur)]
 saveRDS(ecg, file.path(DataPackageR::project_path(), "data-raw/promise_xml_ecg-GEN.rds"))
 
 ```
-
-
-
-
