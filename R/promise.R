@@ -1,8 +1,20 @@
+#' promise: ECG, Echocardiographic and demographic data
+#'
+#' A package for data and helper functions for analysis of matched electrocardriographic 
+#' and echocardiographic data for Duke University Hospital patients between the years 2002-2017 
+#' and corresponding demographics.
+#'
+#' @name promise
+#' @docType package
+#' 
+"_PACKAGE"
+
 #' ECG, Echocardiographic and demographic data for 93,000 patients
 #'
 #' A dataset containing matched electrocardiographic and echocardiographic data
 #' for Duke University Hospital patients between the years 2002 - 2017 and corresponding demographics.
 #'
+#' @format A \code{data.frame} with 93118 rows and 110 variables:
 #' \itemize{
 #'    \item{MRN}{Duke Medical Record Number}
 #'    \item{Echo.date}{Echo exam date Date}
@@ -119,7 +131,6 @@
 #' @keywords datasets
 #' @name promise
 #' @usage data(promise)
-#' @format A \code{data.frame} with 93118 rows and 110 variables:
 #' 
 #' @details
 #'  \describe{

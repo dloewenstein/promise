@@ -8,10 +8,8 @@
 #'
 #' @param path A \code{character} path to and including name and extension of the .rda file.
 #'
-#' @return
 #' @export
 #'
-#' @examples
 set_data_path <- function(path) {
     r_library_path <- .libPaths()
     promise_data_path <- paste0(r_library_path, "/promise/data/")
