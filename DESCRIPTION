@@ -1,19 +1,23 @@
 Package: promise
-Title: What the Package Does (One Line, Title Case)
+Title: The PROMISE dataset
 Version: 1.0
-Authors@R: 
+Authors@R:c(
     person(given = "Daniel",
            family = "Loewenstein",
            role = c("aut", "cre"),
-           email = "loewenstein.daniel@gmail.com")
-Description: What the package does (one paragraph).
+           email = "loewenstein.daniel@gmail.com"),
+    person(given = "Karin",
+           family = "Johansson",
+           role = c("ctb")
+           email = "karin.g.johansson@gmail.com"))
+Description: ECG, Echocardiographic and demographic for 93,000 Duke University Medical Center patients.
 License: What license it uses
 Encoding: UTF-8
 LazyData: true
 DataVersion: 0.1.1
 Roxygen: list(markdown = TRUE)
 Date: 2018-09-22
-Suggests: 
+Suggests:
     knitr,
     rmarkdown
 VignetteBuilder: knitr
