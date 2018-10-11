@@ -2,13 +2,13 @@ Package: promise
 Title: The PROMISE dataset
 Version: 1.0
 Authors@R:c(
-    person(given = "Daniel",
-           family = "Loewenstein",
+    person("Daniel",
+           "Loewenstein",
            role = c("aut", "cre"),
            email = "loewenstein.daniel@gmail.com"),
-    person(given = "Karin",
-           family = "Johansson",
-           role = c("ctb")
+    person("Karin",
+           "Johansson",
+           role = c("ctb"),
            email = "karin.g.johansson@gmail.com"))
 Description: ECG, Echocardiographic and demographic for 93,000 Duke University Medical Center patients.
 License: What license it uses
