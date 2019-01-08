@@ -27,13 +27,16 @@ set_data_path <- function(path) {
         message("folder created ", promise_data_dir)
     }
     
-    promise_data_path <- file.path(promise_data_dir, "promise.Rda")
+    promise_data_path <- file.path(promise_data_dir, "promise.rda")
     
     if (file.exists(promise_data_path)) {
         stop("destination file already exists, no need to link")
     } else if (!file.exists(path)) {
         stop("source file doesn't exist, nothing to link")
     } else {
-        tryCatch(file.symlink(from = path, to = promise_data_path))
+        result <- tryCatch(file.symlink(from = path, to = promise_data_path))
+        if (result) {
+            message(paste0("Created symlink ", promise_data_path))
+        }
     }
 }
