@@ -11,11 +11,24 @@
 #' @export
 #'
 set_data_path <- function(path) {
-    r_library_path <- .libPaths()
-    promise_data_path <- paste0(r_library_path, "/promise/data/")
     if (!is.character(path)) {
         stop("path is not a character!")
-    } else if (file.exists(promise_data_path)) {
+    }
+    
+    r_library_path <- .libPaths()
+    promise_data_path <- paste0(r_library_path, "/promise/data/")
+    message("Checking if library data folder exists")
+    
+    if (dir.exists(promise_data_path)) {
+        TRUE
+    } else {
+        message("folder missing, creating folder")
+        dir.create(promise_data_path)
+        message("folder created ", promise_data_path)
+    }
+    
+    
+    if (file.exists(promise_data_path)) {
         stop("destination file already exists, no need to link")
     } else if (!file.exists(path)) {
         stop("source file doesn't exist, nothing to link")
