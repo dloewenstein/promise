@@ -15,14 +15,14 @@ set_data_path <- function(path) {
         stop("path is not a character!")
     }
     
-    r_library_path <- .libPaths()
+    r_library_path <- .libPaths()[1]
     promise_data_path <- paste0(r_library_path, "/promise/data/")
-    message("Checking if library data folder exists")
+    message("Checking if library data folder exists...")
     
     if (dir.exists(promise_data_path)) {
-        TRUE
+        message("folder exists")
     } else {
-        message("folder missing, creating folder")
+        message("folder is missing, creating folder...")
         dir.create(promise_data_path)
         message("folder created ", promise_data_path)
     }
