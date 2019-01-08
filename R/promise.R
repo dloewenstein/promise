@@ -15,7 +15,7 @@
 #' for Duke University Hospital patients between the years 2002 - 2017 and corresponding demographics.
 #'
 #' @format A \code{data.frame} with 93118 rows and 110 variables:
-#' \itemize{
+#' \describe{
 #'    \item{MRN}{Duke Medical Record Number}
 #'    \item{Echo.date}{Echo exam date Date}
 #'    \item{EF}{Ejection fraction (text)}
