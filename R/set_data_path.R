@@ -16,17 +16,18 @@ set_data_path <- function(path) {
     }
     
     r_library_path <- .libPaths()[1]
-    promise_data_path <- paste0(r_library_path, "/promise/data/")
+    promise_data_dir <- paste0(r_library_path, "/promise/data/")
     message("Checking if library data folder exists...")
     
-    if (dir.exists(promise_data_path)) {
+    if (dir.exists(promise_data_dir)) {
         message("folder exists")
     } else {
         message("folder is missing, creating folder...")
-        dir.create(promise_data_path)
-        message("folder created ", promise_data_path)
+        dir.create(promise_data_dir)
+        message("folder created ", promise_data_dir)
     }
     
+    promise_data_path <- file.path(promise_data_dir, "promise.Rda")
     
     if (file.exists(promise_data_path)) {
         stop("destination file already exists, no need to link")
