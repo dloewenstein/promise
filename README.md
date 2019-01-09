@@ -2,6 +2,8 @@ PROMISE
 ================
 2019-01-09
 
+Duke University Medical Center echo and ecg research database
+
 <!-- README.md is generated from README.Rmd. Please edit that file -->
 Project overview
 ----------------
