@@ -99,7 +99,7 @@ conda install -c dloewenstein r-promise
 ```
 
 First time loading promise you will be prompted to start R with adminrights,
-this is so R get access rights to create a symbolic link from the securely stored data
+this is so R gets access rights to create a symbolic link from the securely stored data
 accessible via Box drive or ExpanDrive to the local library folder.
 
 Continue by running
