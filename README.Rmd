@@ -5,7 +5,9 @@ output: github_document
 ---
 
 Duke University Medical Center echo and ecg research database
-
+[![Anaconda-Server Badge](https://anaconda.org/dloewenstein/r-promise/badges/version.svg)](https://anaconda.org/dloewenstein/r-promise)
+[![Anaconda-Server Badge](https://anaconda.org/dloewenstein/r-promise/badges/latest_release_relative_date.svg)](https://anaconda.org/dloewenstein/r-promise)
+[![Anaconda-Server Badge](https://anaconda.org/dloewenstein/r-promise/badges/platforms.svg)](https://anaconda.org/dloewenstein/r-promise)
 <!-- README.md is generated from README.Rmd. Please edit that file -->
 
 ```{r, echo = FALSE}
@@ -67,7 +69,7 @@ Due to the fact that the data of this package contains PHI it's stored securely 
 
 To get access to the data contact:
 
-- Name: Daniel Loewenstein 
+- Name: Daniel Loewenstein
     - Role: auth, crea
     - Email: loewenstein.daniel@gmail.com
 - Name: Karin Johansson
@@ -97,7 +99,7 @@ conda install -c dloewenstein r-promise
 ```
 
 First time loading promise you will be prompted to start R with adminrights,
-this is so R get access rights to create a symbolic link from the securely stored data 
+this is so R get access rights to create a symbolic link from the securely stored data
 accessible via Box drive or ExpanDrive to the local library folder.
 
 Continue by running
@@ -105,7 +107,7 @@ Continue by running
 ```{r, eval = FALSE}
 library(promise)
 
-# If Box drive or ExpanDrive is installed you will now have a remote location 
+# If Box drive or ExpanDrive is installed you will now have a remote location
 # mapped as local folder or drive, provide the search path to function below e.g
 
 set_data_path("C:/Users/yourUserName/Box/promise/promise_v_0.1.1.rda") # Only need to run once
