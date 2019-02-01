@@ -1,6 +1,6 @@
 ---
 title: "Prevalence of heart failure and medical comorbidities in different electrocardiographic intraventricular conduction abnormalities compared to normal conduction"
-author: "Daniel Loewenstein"
+author: "Daniel Loewenstein\nKarin Johansson"
 date: "`r Sys.Date()`"
 slug: promise
 show_toc: yes
@@ -50,7 +50,7 @@ data_dir <- DataPackageR::project_data_path()
 ```{r, echo=FALSE}
 # The above chunk is showed in vignette, but stored data otherwhere during build.
 
-data_dir <- "/mnt/c/Users/Daniel/Cloudstation/Documents/Research/Projects/POHMECG/data"
+data_dir <- "/mnt/z/jolo_projects/promise/inst/extdata"
 ```
 
 ## Echo data
@@ -743,12 +743,14 @@ read_lab_data <- function(file_name, lab) {
                                              "%m/%d/%Y %H:%M"),
                                          tz = "America/New_York")
         ) %>% 
-        mutate(!!.lab_value := stringr::str_remove_all(.data[[!!.lab_value]], pattern = "<|>|="))
+        # lab values contains strings like > < for greater, lower than, also , as thousand marker
+        # remove for coercion to numeric.
+        mutate(!!.lab_value := stringr::str_remove_all(.data[[!!.lab_value]], pattern = "<|>|=|,"))
     
     missing_text_result_index <- which(is.na(.formatted_data[[.lab_value]]) &
                                      !is.na(.formatted_data[["Numeric.Result"]]))
     
-    replacement_values <- as.integer(.formatted_data[missing_text_result_index, "Numeric.Result"])
+    replacement_values <- as.numeric(.formatted_data[missing_text_result_index, "Numeric.Result"])
     
     .formatted_data[missing_text_result_index, .lab_value] <- replacement_values
     
@@ -823,7 +825,11 @@ probnp.df <- bnp_pro_bnp.df %>%
 ```{r}
 match_mrn_lab <- function(x, lab) {
     .lab <- enquo(lab)
-    .lab_date <- paste0(quo_name(.lab), ".lab.Date")
+    
+    # Turn .lab_date and .lab_value into symbols for use with dplyr
+    .lab_date <- rlang::sym(paste0(quo_name(.lab), ".lab.Date"))
+    .lab_value <- rlang::sym(paste0(quo_name(.lab), ".lab.Value"))
+    
     
     .matched_data <- inner_join(ecgdates.df, x, by = "MRN")
     
@@ -835,13 +841,16 @@ match_mrn_lab <- function(x, lab) {
                        as.numeric(
                            difftime(
                                ECGDate,
-                               .data[[!!.lab_date]],
+                               !!.lab_date,
                                units = "days")
                        )
                    )
         ) %>% 
         filter(time_diff == min(time_diff, na.rm = TRUE)) %>%
         filter(time_diff <= 30) %>%
+        group_by(MRN, ECGDate, !!.lab_date, time_diff) %>% 
+        # Some patients have multiple lab values/day, return the mean
+        summarize(!!.lab_value := mean(as.numeric(!!.lab_value), na.rm = TRUE)) %>% 
         slice(1) %>% 
         ungroup() %>% 
         select(-time_diff, -ECGDate)
@@ -991,11 +1000,7 @@ main.df6 <- main.df5 %>%
 ```
 
 ```{r}
-main.df6$filepath <- basename(main.df6$filepath)
-```
-
-
-```{r}
 promise <- droplevels(main.df6)
 ```
+
 
