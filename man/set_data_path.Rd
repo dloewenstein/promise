@@ -4,10 +4,12 @@
 \alias{set_data_path}
 \title{Set promise data path}
 \usage{
-set_data_path(path)
+set_data_path(path, .update = FALSE)
 }
 \arguments{
 \item{path}{A \code{character} path to and including name and extension of the .rda file.}
+
+\item{.update}{A \code{logical}, for whether or not to update symlink.}
 }
 \description{
 Setting up symlink for promise data

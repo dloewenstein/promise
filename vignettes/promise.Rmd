@@ -1,16 +1,19 @@
 ---
 title: Prevalence of heart failure and medical comorbidities in different electrocardiographic
   intraventricular conduction abnormalities compared to normal conduction
-author: Daniel Loewenstein
+author: |-
+  Daniel Loewenstein
+  Karin Johansson
 date: '`r Sys.Date()`'
 slug: promise
 show_toc: yes
 output:
-  rmarkdown:::html_vignette
+  knitr:::html_vignette: ~
+  number_sections: yes
 vignette: >
   %\VignetteIndexEntry{Creating promise database}
-  %\VignetteEngine{knitr::rmarkdown}
-  \usepackage[utf8]{inputenc}
+  %\VignetteEngine{knitr::rmarkdown_notangle}
+  %\VignetteEncoding{UTF-8}
 ---
 
 ## Summary
@@ -50,7 +53,7 @@ data_dir <- DataPackageR::project_data_path()
 ```{r, echo=FALSE}
 # The above chunk is showed in vignette, but stored data otherwhere during build.
 
-data_dir <- "/mnt/c/Users/Daniel/Cloudstation/Documents/Research/Projects/POHMECG/data"
+data_dir <- "/mnt/z/jolo_projects/promise/inst/extdata"
 ```
 
 ## Echo data
@@ -59,7 +62,7 @@ Time to read in all the echo data.
 
 ```{r, echo_data}
 #Reads echo data
-echo <- read.csv(file.path(data_dir, "all_echoes.csv"),
+echo <- read.csv(file.path(data_dir, "all_echoes.csv"), 
                  stringsAsFactors = FALSE,
                 na.strings = c(""," ","  ", "NA", "N/A"),
                 strip.white = TRUE)
@@ -69,7 +72,7 @@ Since all the data are exported from the Deduce database, Duke University Medica
 
 ```{r}
 echo <- echo %>%
-        rename(MRN = log_history,
+        rename(MRN = log_history, 
                EF = acq_efclosest,
                PAP.mm.hg = acq_rvsyspress,
                AS.severity = acq_as,
@@ -77,13 +80,13 @@ echo <- echo %>%
                AR.severity = acq_ai,
                MR.severity = acq_mr,
                echo_indication = log_sp1) %>%
-
-        mutate(Echo.date = as.POSIXct(log_dos,
-                                      format = "%m/%d/%Y %H:%M:%S",
+        
+        mutate(Echo.date = as.POSIXct(log_dos, 
+                                      format = "%m/%d/%Y %H:%M:%S", 
                                       tz = "America/New_York"),
                PAP.mm.hg = as.numeric(PAP.mm.hg),
                EF.x = as.numeric(  #  had to remove characters to be able to convert to numericals
-                   str_replace_all(EF,
+                   str_replace_all(EF, 
                                    c("<" = "", ">" = "", "%" = "", "=" = "")
                                    )
                    )
@@ -93,18 +96,18 @@ echo <- echo %>%
                     "MS.severity",
                     "AR.severity",
                     "MR.severity"), as.factor) %>%
-        select(MRN,
-               Echo.date,
-               EF,
-               EF.x,
-               AS.severity,
-               MS.severity,
-               AR.severity,
-               MR.severity,
-               PAP.mm.hg,
+        select(MRN, 
+               Echo.date, 
+               EF, 
+               EF.x, 
+               AS.severity, 
+               MS.severity, 
+               AR.severity, 
+               MR.severity, 
+               PAP.mm.hg, 
                echo_indication)
-
-
+               
+        
 
 ```
 
@@ -125,54 +128,54 @@ df <- df %>%
         filter(
             abs(
                 as.numeric(
-                    difftime(Echo.date,
-                             ECGDate,
+                    difftime(Echo.date, 
+                             ECGDate, 
                              units = "days")
                     )
                 )
             <= 30
             ) %>%
-
+        
         # filters by echo exam and ecg exam closest in time (in seconds)
         filter(
             abs(
                 as.numeric(
                     difftime(Echo.date,
-                             ECGDate,
+                             ECGDate, 
                              units = "secs")
                     )
-                )
+                ) 
             == min(
                 abs(
                     as.numeric(
-                        difftime(Echo.date,
-                                 ECGDate,
+                        difftime(Echo.date, 
+                                 ECGDate, 
                                  units = "secs")
                         )
                     )
                 )
             ) %>%
-
+        
         # removes eventual duplicates
         unique() %>%
-
+        
         # ungroups to be able to do next operation
         ungroup() %>%
-
+        
         # creates a new column holding number of NA in that row
         mutate(n = rowSums(is.na(.))) %>%
-
+        
         # group by MRN
         group_by(MRN) %>%
-
+        
         # within each MRN group selects the observation with the fewest numbers of NA
         filter(n == min(n)) %>%
-
+        
         # for each MRN, select the first entry
         slice(1) %>%
-
+        
         ungroup() %>%
-
+        
         # drops the added column with number of na's
         select(-n)
 ```
@@ -191,7 +194,7 @@ which uses the updated MRNs.
 
 ```{r}
 # Reads in updated MRN data
-mrn.df <- read.csv(file.path(data_dir, "changedMrns.csv"),
+mrn.df <- read.csv(file.path(data_dir, "changedMrns.csv"), 
                    stringsAsFactors = FALSE,
                    strip.white = TRUE)
 
@@ -206,7 +209,7 @@ the same new MRN, all of these are removed below.
 ```{r}
 # selects all rows in mrn.df were new.MRN is not one of the new.MRNs that
 # are duplicated.
-mrn.df <- mrn.df[!mrn.df$new.MRN %in%
+mrn.df <- mrn.df[!mrn.df$new.MRN %in% 
                          mrn.df[duplicated(mrn.df$new.MRN),]$new.MRN,]
 
 # Excludes all MRNs in df that also exist in mrn.df$new.MRN
@@ -222,13 +225,13 @@ df <- left_join(df, mrn.df, by = "MRN")
 # Replaces old MRNs with new ones, dropping the newly added new.MRN column.
 df <- df %>%
         mutate(MRN = if_else(!is.na(new.MRN),
-                             true = new.MRN,
+                             true = new.MRN, 
                              false = MRN)
                ) %>%
         select(-new.MRN)
 ```
 
-## Demographics
+## Demographics 
 
 Reading in demographics datas regarding DOB, gender, race and date of death
 
@@ -244,16 +247,16 @@ Renaming column variables, setting date columns in POSIXct format, (POSIXlt uses
 
 ```{r}
 demo.df <- demo.df %>%
-        transmute(MRN = Duke.MRN,
-               Gender = as.factor(Patient.Gender),
-               Race = as.factor(Patient.Race),
-               DOB = as.POSIXct(Patient.Date.of.Birth,
-                                format = "%m/%d/%Y %H:%M:%S",
+        transmute(MRN = Duke.MRN, 
+               Gender = as.factor(Patient.Gender), 
+               Race = as.factor(Patient.Race), 
+               DOB = as.POSIXct(Patient.Date.of.Birth, 
+                                format = "%m/%d/%Y %H:%M:%S", 
                                 tz = "America/New_York"),
                Age.at.ECG = as.integer(0), # for future use
                Death.index = as.factor(Patient.Death.Indicator),
-               DOD = as.POSIXct(Patient.Death.Date,
-                                format = "%m/%d/%Y %H:%M:%S",
+               DOD = as.POSIXct(Patient.Death.Date, 
+                                format = "%m/%d/%Y %H:%M:%S", 
                                 tz = "America/New_York"))
 ```
 
@@ -261,17 +264,17 @@ demo.df <- demo.df %>%
 Let's clean up the Race factor levels a bit.
 
 ```{r}
-levels(demo.df$Race) <- list("Mix"              = c("2 OR MORE RACES",
+levels(demo.df$Race) <- list("Mix"              = c("2 OR MORE RACES", 
                                                     "MULTIRACIAL"),
                              "American.native"  = c("ALASKAN NATIVE",
                                                      "AMERICAN INDIAN",
                                                      "AMERICAN INDIAN OR ALASKAN NATIVE"),
-                             "Native.hawaiian.or.other.pacific.islander" =
+                             "Native.hawaiian.or.other.pacific.islander" = 
                                "NATIVE HAWAIIAN OR OTHER PACIFIC ISLANDER",
-                             "Caucasian"        = c("WHITE OR CAUCASIAN",
+                             "Caucasian"        = c("WHITE OR CAUCASIAN", 
                                                     "CAUCASIAN/WHITE"),
                              "African.american" = "BLACK OR AFRICAN AMERICAN",
-                             "NA"               = c("UNAVAILABLE",
+                             "NA"               = c("UNAVAILABLE", 
                                                     "NOT REPORTED/DECLINED"),
                              "Asian"            = "ASIAN",
                              "Other"            = "OTHER")
@@ -283,7 +286,7 @@ This way of merging returns all rows from df where there are matching values in 
 
 ```{r}
 main.df <- inner_join(df, demo.df, by = "MRN") %>%
-
+        
         # we need the patient age at the time of the ecg
         mutate(Age.at.ECG = round(
             as.integer(
@@ -293,7 +296,7 @@ main.df <- inner_join(df, demo.df, by = "MRN") %>%
                 )
             / 365.25)
             )
-
+        
 ```
 
 
@@ -320,34 +323,34 @@ get_path <- function(file_name, sub_folder){
 #'
 #' @examples
 read_diagnosis_data <- function(file_name, abb_dx, type_data = c("diagnosis", "procedure")) {
-
+    
     .sub_folder <- "Dx"
     .file_path <- get_path(file_name = file_name,
                             sub_folder = .sub_folder)
     .abb_dx <- enquo(abb_dx)
     .dx_code <- paste0(quo_name(.abb_dx), ".Code")
     .dx_date <- paste0(quo_name(.abb_dx), ".Date")
-
+    
     .raw_data <- read.csv(
         .file_path,
         stringsAsFactors = FALSE,
         na.strings = c(""," ","  ", "NA", "N/A")
         )
-
+    
     if (type_data[1] == "diagnosis") {
-    .formatted_data <- .raw_data %>%
+    .formatted_data <- .raw_data %>% 
         rename(MRN         = Duke.MRN,
                !!.dx_code := ICD.Diagnosis.Code,
-               !!.dx_date := Diagnosis.Date) %>%
+               !!.dx_date := Diagnosis.Date) %>% 
         mutate(!!.dx_date := as.POSIXct(.data[[!!.dx_date]],
                                      format = "%m/%d/%Y %H:%M:%S",
                                      tz     = "America/New_York")
                )
     } else if (type_data[1] == "procedure") {
-            .formatted_data <- .raw_data %>%
+            .formatted_data <- .raw_data %>% 
         rename(MRN         = Duke.MRN,
                !!.dx_code := ICD.Procedure.Code,
-               !!.dx_date := Procedure.Date) %>%
+               !!.dx_date := Procedure.Date) %>% 
         mutate(!!.dx_date := as.POSIXct(.data[[!!.dx_date]],
                                      format = "%m/%d/%Y %H:%M:%S",
                                      tz     = "America/New_York"),
@@ -363,16 +366,16 @@ read_diagnosis_data <- function(file_name, abb_dx, type_data = c("diagnosis", "p
 ### Procedure data
 
 ```{r}
-crt.df <- read.csv(get_path("CRT Codes.csv", "Dx"),
+crt.df <- read.csv(get_path("CRT Codes.csv", "Dx"), 
                    stringsAsFactors = FALSE,
                    na.strings = c(""," ","  ", "NA", "N/A")
                    )
 
 crt.df <- crt.df %>%
-        rename(MRN = Duke.MRN,
+        rename(MRN = Duke.MRN, 
                CRT.Date = ICD.CPT.Procedure.Date) %>%
-        mutate(CRT.Date = as.POSIXct(CRT.Date,
-                                    format = "%m/%d/%Y %H:%M:%S",
+        mutate(CRT.Date = as.POSIXct(CRT.Date, 
+                                    format = "%m/%d/%Y %H:%M:%S", 
                                     tz = "America/New_York"),
                CRT = as.factor(1)
                ) %>%
@@ -423,14 +426,14 @@ For some patients there will be multiple entries with the same diagnosis date, t
 #' @return
 #'
 #' @examples
-match_mrn_diagnosis <- function(x, diagnosis) {
-
+match_mrn_diagnosis <- function(x, diagnosis) { 
+  
     .dx <- enquo(diagnosis)
     .dx_date <- paste0(quo_name(.dx), ".Date")
-
-    .matched_data <- x %>%
+        
+    .matched_data <- x %>% 
         inner_join(ecgdates.df, by = "MRN") %>%  #  join x with ecgdates dataframe
-        group_by(MRN) %>%
+        group_by(MRN) %>% 
         filter(!!.dx_date == min(!!.dx_date)) %>%
         filter(as.numeric(
             difftime(ECGDate,
@@ -438,9 +441,9 @@ match_mrn_diagnosis <- function(x, diagnosis) {
                      units = "days")
         )
         >= (-30)
-        ) %>%
-        slice(1) %>%
-        ungroup() %>%
+        ) %>% 
+        slice(1) %>% 
+        ungroup() %>% 
         mutate(!!quo_name(.dx) := factor(1)) %>%  #  Diagnosis indicator
         select(-ECGDate)
 }
@@ -462,14 +465,14 @@ Joining diagnosis data to main.df
 
 ```{r}
 
-combine_list <- list(main.df,
-                     af.df,
-                     cad.df,
-                     chd.df,
-                     copd.df,
-                     dm.df,
-                     hf.df,
-                     htn.df,
+combine_list <- list(main.df, 
+                     af.df, 
+                     cad.df, 
+                     chd.df, 
+                     copd.df, 
+                     dm.df, 
+                     hf.df, 
+                     htn.df, 
                      osa.df,
                      crt.df,
                      lvad.df,
@@ -500,43 +503,43 @@ main.df2 <- main.df2 %>%
 
 ```{r}
 read_rx_data <- function(file_name, abb_rx, patient = c("in", "out")){
-
+    
     .rx <- enquo(abb_rx)
     .path <- get_path(file_name = file_name,
                       sub_folder = "Medications")
-
+    
     .rx_data <- read.csv(.path,
                          stringsAsFactors = FALSE,
                          na.strings = c(""," ","  ", "NA", "N/A"))
-
+    
     if (patient[1] == "in") {
         .rx_name <- paste0(quo_name(.rx), ".Rx.Name")
         .rx_start_date <- paste0(quo_name(.rx), ".Rx.Start")
         .rx_end_date   <- paste0(quo_name(.rx), ".Rx.End")
-
-        .formatted_data <- .rx_data %>%
+        
+        .formatted_data <- .rx_data %>% 
             rename(MRN = Duke.MRN,
                    !!.rx_name := Medication.Name,
                    !!.rx_start_date := Start.Date,
-                   !!.rx_end_date   := End.Date) %>%
+                   !!.rx_end_date   := End.Date) %>% 
             mutate(!!.rx_start_date := as.POSIXct(.data[[!!.rx_start_date]],
-                                                  format = "%m/%d/%Y %H:%M:%S",
+                                                  format = "%m/%d/%Y %H:%M:%S", 
                                                   tz = "America/New_York"),
                    !!.rx_end_date   := as.POSIXct(.data[[!!.rx_end_date]],
-                                                  format = "%m/%d/%Y %H:%M:%S",
+                                                  format = "%m/%d/%Y %H:%M:%S", 
                                                   tz = "America/New_York")
             )
     } else if (patient[1] == "out") {
         .rx_name <- paste0(quo_name(.rx), ".Rx.OMR.Name")
         .rx_date <- paste0(quo_name(.rx), ".Rx.OMR.Date")
-
-
-        .formatted_data <- .rx_data %>%
+        
+        
+        .formatted_data <- .rx_data %>% 
             rename(MRN = Duke.MRN,
                    !!.rx_name := OMR.Medication.Name,
-                   !!.rx_date := OMR.Report.Date) %>%
+                   !!.rx_date := OMR.Report.Date) %>% 
             mutate(!!.rx_date := as.POSIXct(.data[[!!.rx_date]],
-                                            format = "%m/%d/%Y %H:%M:%S",
+                                            format = "%m/%d/%Y %H:%M:%S", 
                                                   tz = "America/New_York")
             )
     }
@@ -573,12 +576,12 @@ match_mrn_rx <- function(x, rx, patient = c("in", "out")){
     .rx <- enquo(rx)
     .matched_data <- inner_join(ecgdates.df, x, by = "MRN")
     .rx_name <- paste0(quo_name(.rx), ".Rx")
-
+    
     if (patient[1] == "in"){
         .rx_start_date <- paste0(quo_name(.rx), ".Rx.Start")
         .rx_end_date <- paste0(quo_name(.rx), ".Rx.End")
-
-        .formatted_data <- .matched_data %>%
+        
+        .formatted_data <- .matched_data %>% 
             mutate(
                 start_diff = as.numeric(
                     difftime(ECGDate, .data[[!!.rx_start_date]], units = "days")
@@ -586,18 +589,18 @@ match_mrn_rx <- function(x, rx, patient = c("in", "out")){
                 end_diff = as.numeric(
                     difftime(ECGDate, .data[[!!.rx_end_date]], units = "days")
                 )
-            ) %>%
-            group_by(MRN) %>%
+            ) %>% 
+            group_by(MRN) %>% 
             filter(start_diff >= (-30)) %>%
-            filter(end_diff <= 30) %>%
-            slice(1) %>%
-            ungroup() %>%
-            mutate(!!.rx_name := factor(1)) %>%
+            filter(end_diff <= 30) %>% 
+            slice(1) %>% 
+            ungroup() %>% 
+            mutate(!!.rx_name := factor(1)) %>% 
             select(-ECGDate, -start_diff, -end_diff)
     } else if (patient[1] == "out") {
         .rx_report_date <- paste0(quo_name(.rx), ".Rx.OMR.Date")
-
-        .formatted_data <- .matched_data %>%
+        
+        .formatted_data <- .matched_data %>% 
             group_by(MRN) %>%
             mutate(time_diff = abs(
                 as.numeric(
@@ -606,11 +609,11 @@ match_mrn_rx <- function(x, rx, patient = c("in", "out")){
                              units = "days")
                     )
                 )
-            ) %>%
-            filter(time_diff == min(time_diff, na.rm = TRUE)) %>%
-            filter(time_diff <= 30) %>%
-            slice(1) %>%
-            ungroup() %>%
+            ) %>% 
+            filter(time_diff == min(time_diff, na.rm = TRUE)) %>% 
+            filter(time_diff <= 30) %>% 
+            slice(1) %>% 
+            ungroup() %>% 
             mutate(!!.rx_name := factor(1)) %>%
             select(-time_diff, -ECGDate)
     }
@@ -691,11 +694,11 @@ coalesce_rx_columns <- function(abb_rx, x){
     .rx_x <- paste0(abb_rx, ".Rx.x")
     .rx_y <- paste0(abb_rx, ".Rx.y")
     .rx_name <- paste0(abb_rx, ".Rx")
-
-    .formatted_data <- x %>%
-        mutate(!!.rx_name := coalesce(.data[[!!.rx_x]],
+    
+    .formatted_data <- x %>% 
+        mutate(!!.rx_name := coalesce(.data[[!!.rx_x]], 
                                       .data[[!!.rx_y]])
-               ) %>%
+               ) %>% 
         select(-!!.rx_x, -!!.rx_y)
 }
 ```
@@ -722,38 +725,40 @@ read_lab_data <- function(file_name, lab) {
     .lab <- enquo(lab)
     .lab_date <- paste0(quo_name(.lab), ".lab.Date")
     .lab_value <- paste0(quo_name(.lab), ".lab.Value")
-
+    
     .path <- get_path(file_name = file_name,
                       sub_folder = "Lab")
-
+    
     .lab_data <- read.csv(.path,
                           stringsAsFactors = FALSE,
-                          na.strings = c(""," ","  ", "NA", "N/A",
-                                         "CANCELED", "*H", "*", "**",
+                          na.strings = c(""," ","  ", "NA", "N/A", 
+                                         "CANCELED", "*H", "*", "**", 
                                          "***", "*******")
                           )
-
-    .formatted_data <- .lab_data %>%
+    
+    .formatted_data <- .lab_data %>% 
         rename(MRN = Duke.MRN,
                !!.lab_date := Specimen.Collection.Date,
-               !!.lab_value := Text.Result) %>%
+               !!.lab_value := Text.Result) %>% 
         mutate(!!.lab_date := as.POSIXct(.data[[!!.lab_date]],
                                          tryFormats = c(
                                              "%m/%d/%Y %H:%M:%S",
                                              "%m/%d/%Y %H:%M"),
                                          tz = "America/New_York")
-        ) %>%
-        mutate(!!.lab_value := stringr::str_remove_all(.data[[!!.lab_value]], pattern = "<|>|="))
-
+        ) %>% 
+        # lab values contains strings like > < for greater, lower than, also , as thousand marker
+        # remove for coercion to numeric.
+        mutate(!!.lab_value := stringr::str_remove_all(.data[[!!.lab_value]], pattern = "<|>|=|,"))
+    
     missing_text_result_index <- which(is.na(.formatted_data[[.lab_value]]) &
                                      !is.na(.formatted_data[["Numeric.Result"]]))
-
-    replacement_values <- as.integer(.formatted_data[missing_text_result_index, "Numeric.Result"])
-
+    
+    replacement_values <- as.numeric(.formatted_data[missing_text_result_index, "Numeric.Result"])
+    
     .formatted_data[missing_text_result_index, .lab_value] <- replacement_values
-
+    
     if (quo_name(.lab) == "BNP") {
-
+        
         bnp_levels <- list(
             "BNP - LABCORP" = "BNP",
             "BRAIN NATRIURETIC PEPTIDE" = "BNP",
@@ -763,17 +768,17 @@ read_lab_data <- function(file_name, lab) {
             "PRO BRAIN NATRIURETIC PEPTIDE     (BKR)" = "ProBNP",
             "PROBNP - LABCORP" = "ProBNP"
         )
-
-        .formatted_data <- .formatted_data %>%
-            select(-Numeric.Result) %>%
-            filter(!is.na(!!.lab_value)) %>%
-            mutate(Test.Description = as.factor(Test.Description)) %>%
+        
+        .formatted_data <- .formatted_data %>% 
+            select(-Numeric.Result) %>% 
+            filter(!is.na(!!.lab_value)) %>% 
+            mutate(Test.Description = as.factor(Test.Description)) %>% 
             mutate(Test.Description = recode_factor(Test.Description,
                                                     !!!bnp_levels)
             )
     } else {
-        .formatted_data <- .formatted_data %>%
-            select(-Test.Description, -Numeric.Result) %>%
+        .formatted_data <- .formatted_data %>% 
+            select(-Test.Description, -Numeric.Result) %>% 
             filter(!is.na(!!.lab_value))
     }
 }
@@ -823,27 +828,34 @@ probnp.df <- bnp_pro_bnp.df %>%
 ```{r}
 match_mrn_lab <- function(x, lab) {
     .lab <- enquo(lab)
-    .lab_date <- paste0(quo_name(.lab), ".lab.Date")
-
+    
+    # Turn .lab_date and .lab_value into symbols for use with dplyr
+    .lab_date <- rlang::sym(paste0(quo_name(.lab), ".lab.Date"))
+    .lab_value <- rlang::sym(paste0(quo_name(.lab), ".lab.Value"))
+    
+    
     .matched_data <- inner_join(ecgdates.df, x, by = "MRN")
-
-
-    .formatted_data <- .matched_data %>%
+    
+    
+    .formatted_data <- .matched_data %>% 
         group_by(MRN) %>%
-        mutate(time_diff =
+        mutate(time_diff = 
                    abs(
                        as.numeric(
                            difftime(
                                ECGDate,
-                               .data[[!!.lab_date]],
+                               !!.lab_date,
                                units = "days")
                        )
                    )
-        ) %>%
+        ) %>% 
         filter(time_diff == min(time_diff, na.rm = TRUE)) %>%
         filter(time_diff <= 30) %>%
-        slice(1) %>%
-        ungroup() %>%
+        group_by(MRN, ECGDate, !!.lab_date, time_diff) %>% 
+        # Some patients have multiple lab values/day, return the mean
+        summarize(!!.lab_value := mean(as.numeric(!!.lab_value), na.rm = TRUE)) %>% 
+        slice(1) %>% 
+        ungroup() %>% 
         select(-time_diff, -ECGDate)
 }
 ```
@@ -879,9 +891,9 @@ main.df4 <- purrr::reduce(combine_lab_list, left_join, by = "MRN")
 ```{r}
 
 main.df4 <- main.df4 %>%
-
+        
         filter(Age.at.ECG >= 18,
-
+               
                QRSDur >= 60)
 ```
 
@@ -890,23 +902,23 @@ main.df5 <- main.df4 %>%
         mutate(RBBB = if_else(RBBB == 1 & QRSDur >= 120,
                                true  = 1,
                                false = 0),
-
+               
                RBBB_LAFB = if_else(RBBB == 1 & LAFB == 1 & (AXIS <= -30 & AXIS >= -89),
                                     true  = 1,
                                     false = 0),
-
+               
                RBBB_LPFB = if_else(RBBB == 1 & LPFB == 1 & (AXIS >= 110 & AXIS <= 180),
                                     true  = 1,
                                     false = 0),
-
+               
                RBBB = if_else(RBBB_LAFB == 1 | RBBB_LPFB == 1,
                                true  = 0,
                                false = RBBB),
-
+               
                LBBB = if_else(LBBB == 1 & QRSDur >= 120,
                                true  = 1,
                                false = 0),
-
+               
                IVCD = if_else(IVCD == 1 & QRSDur >= 110 &
                                        LBBB == 0 &
                                        RBBB == 0 &
@@ -914,16 +926,16 @@ main.df5 <- main.df4 %>%
                                        RBBB_LPFB == 0,
                                true  = 1,
                                false = 0),
-
+               
                LAFB = if_else(LAFB == 1 & QRSDur <120 & IVCD == 0 & (AXIS <= -30 & AXIS >= -89),
                                true  = 1,
                                false = 0),
-
+               
                LPFB = if_else(LPFB == 1 & QRSDur <120 & IVCD == 0 & (AXIS >= 110 & AXIS <= 180),
                                true  = 1,
                                false = 0),
-
-               Normal_conduction = if_else(LBBB      == 0 &
+               
+               Normal_conduction = if_else(LBBB      == 0 & 
                                            LAFB      == 0 &
                                            LPFB      == 0 &
                                            RBBB      == 0 &
@@ -932,11 +944,11 @@ main.df5 <- main.df4 %>%
                                            IVCD      == 0 &
                                            PACE      == 0 &
                                            QRSDur < 120,
-
+                                           
                                            true  = 1,
                                            false = 0))
-
-
+               
+               
 ```
 
 ```{r}
@@ -947,8 +959,8 @@ replace_na <- function(x) {
 ```
 
 ```{r}
-fix_na_columns <- c("AF",
-                    "CAD",
+fix_na_columns <- c("AF", 
+                    "CAD", 
                     "CHD",
                     "COPD",
                     "CRT",
@@ -991,10 +1003,8 @@ main.df6 <- main.df5 %>%
 ```
 
 ```{r}
-main.df6$filepath <- basename(main.df6$filepath)
-```
-
-
-```{r}
 promise <- droplevels(main.df6)
 ```
+
+
+

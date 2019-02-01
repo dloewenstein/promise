@@ -9,16 +9,16 @@
 #'
 #' @examples
 
-xmlToDataframe <- function(filepath, use_progress=TRUE) {
+xmlToDataframe <- function(data_dir, filepath, use_progress=TRUE) {
 
 # Update progress
 if (use_progress) {
 pb$tick()
 }
-    
+
 # Read the xml document.
 
-xml <- xml2::read_xml(filepath)
+xml <- xml2::read_xml(file.path(data_dir, filepath))
 
 # Use xpath to find precise parameters and get content.
 
@@ -70,14 +70,12 @@ ecg_df <- ecg %>%
 colnames(ecg_df) <- ecg_variables
 
 diagnosis <- xml %>%
-  xml_find_all("/RestingECG/Diagnosis")%>%
+  xml_find_all("/RestingECG/Diagnosis") %>%
   .cleanedStatement()
 
 original_diagnosis <- xml %>%
   xml_find_all("/RestingECG/OriginalDiagnosis") %>%
   .cleanedStatement()
-
-
 
 pat_df <- cbind(demo_df,
                 ECGDate,
@@ -102,34 +100,36 @@ pat_df <- cbind(demo_df,
 
 x <-  x %>%
   xml2::xml_text() %>% # Get the text from the node.
-  stringr::str_replace_all(.,regex(("(userinsert)"), ignore_case = TRUE), "") %>%
+  stringr::str_replace_all(.,stringr::regex(("(userinsert)"), ignore_case = TRUE), "") %>%
   stringr::str_split("ENDSLINE") %>% # Split text into vectors.
   unlist() %>%
   stringr::word(1, sep = "\\.") %>%
   stringr::str_split(",") %>%
   unlist() %>%
-  subset(stringr::str_detect(.,regex(("(absent|\\bno\\b|\\bsuggests?\\b|\\bprobabl(e|y)\\b|\\bpossible\\b|\\brecommend\\b|\\bconsider\\b|\\bindicated\\b|resting)"),
+  subset(stringr::str_detect(.,stringr::regex(("(absent|\\bno\\b|\\bsuggests?\\b|\\bprobabl(e|y)\\b|\\bpossible\\b|\\brecommend\\b|\\bconsider\\b|\\bindicated\\b|resting)"),
                             ignore_case = TRUE)) == FALSE) %>%
   stringr::str_c(collapse = ", ") %>%
   tolower()
 
 }
-
 library(purrr)
 library(data.table)
+library(stringr)
+library(dplyr)
 
-data_dir <- DataPackageR::project_extdata_path()
+xml_dir <- "/mnt/c/Users/Daniel/Desktop/promise_xml"
+data_dir <- "/mnt/z/jolo_projects/promise/inst/extdata"
 
-# List all xml files with full name (this includes pathway).
+# List all xml files.
 
-xml_files <- list.files(file.path(data_dir, "Muse_xml/"), full.names = TRUE)
+xml_files <- list.files(xml_dir)
 
 # Apply xmlToDataframe function to all xml files.
 
 pb <- progress::progress_bar$new(total = length(xml_files))
 
 pb$tick(0)
-ecg <- map(xml_files, xmlToDataframe)
+ecg <- map(xml_files, ~xmlToDataframe(xml_dir, .x))
 
 # Combine the dataframes in the list to a data.table, fill to replace empty/
 #missing data in columns with NA.
