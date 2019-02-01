@@ -1,24 +1,26 @@
 Package: promise
 Title: The PROMISE dataset
-Version: 1.0
-Authors@R:c(
+Version: 1.2
+Authors@R: c(
     person("Daniel",
            "Loewenstein",
            role = c("aut", "cre"),
            email = "loewenstein.daniel@gmail.com"),
     person("Karin",
            "Johansson",
-           role = c("ctb"),
+           role = c("aut", "ctb"),
            email = "karin.g.johansson@gmail.com"))
 Description: ECG, Echocardiographic and demographic for 93,000 Duke University Medical Center patients.
 License: What license it uses
 Encoding: UTF-8
 LazyData: true
-DataVersion: 0.1.1
+DataVersion: 0.1.2
 Roxygen: list(markdown = TRUE)
-Date: 2018-09-22
+Date: 2019-02-01
 Suggests:
     knitr,
     rmarkdown
 VignetteBuilder: knitr
 RoxygenNote: 6.0.1
+Imports: crayon,
+    cli
