@@ -18,7 +18,7 @@ set_data_path <- function(path, .update = FALSE) {
     
     # Set data paths
     destination_dir  <- system.file("data", package = "promise")
-    destination_file <- system.file("promise.rda", "data", package = "promise")
+    destination_file <- system.file("data", "promise.rda", package = "promise")
     
     if (.update) {
         stopifnot(file.exists(destination_file))
