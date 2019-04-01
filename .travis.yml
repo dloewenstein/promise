@@ -26,7 +26,6 @@ before_install:
     - "rclone mount box: $HOME/box --allow-other --daemon"
 
 before_script:
-    - mkdir $TRAVIS_BUILD_DIR/data-raw
     - cp $TRAVIS_BUILD_DIR/vignettes/* $TRAVIS_BUILD_DIR/data-raw/
 
 script:
