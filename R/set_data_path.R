@@ -12,80 +12,54 @@
 #' @export
 #'
 set_data_path <- function(path, .update = FALSE) {
-    if (!is.character(path)) {
-        stop("path is not a character!")
-    }
+    
+    stopifnot(is.character(path))
+    stopifnot(file.exists(path))
     
     # Set data paths
-    r_library_path <- .libPaths()[1]
-    promise_data_dir <- file.path(r_library_path, "promise", "data")
-    promise_data_path <- file.path(promise_data_dir, "promise.rda")
+    destination_dir  <- system.file("data", package = "promise")
+    destination_file <- system.file("promise.rda", "data", package = "promise")
     
     if (.update) {
+        stopifnot(file.exists(destination_file))
+        message("removing old file", destination_file)
+        file.remove(destination_file)
+        result <- tryCatch(file.symlink(from = path, to = destination_file))
         
-        if (!file.exists(path)) {
-            
-            stop(cli::symbol$warning," ", path, " doesn't exist, nothing to link")
-            
-        } else {
-            
-            if (dir.exists(promise_data_dir)) {
-                message(crayon::green(cli::symbol$tick, "folder exists"))
-                message("removing old file", promise_data_path)
-                file.remove(promise_data_path)
-                
-            } else {
-                
-                message(cli::symbol$warning, " folder is missing, creating folder...")
-                
-                dir.create(promise_data_dir)
-                
-                message(crayon::green(cli::symbol$tick, "folder created ", promise_data_dir))
-            }
-            
-            result <- tryCatch(file.symlink(from = path, to = promise_data_path))
-            
-            if (result) {
-                
-                message(crayon::green(cli::symbol$tick, "Created symlink", promise_data_path))
-            }
-        }
+        if (result) 
+            message(crayon::green(cli::symbol$tick, "Created symlink", destination_file))
+        else
+            message("Failed at creating symlink from ",
+                    path, 
+                    " to ",
+                    destination_file)
+        
+        return()
     }
     
     # Check if file already exists
-    if (file.exists(promise_data_path)) {
+    if (file.exists(destination_file)) {
         
-        message(crayon::green(cli::symbol$circle_filled, "destination file already exists, no need to link"))
+        message(crayon::green(cli::symbol$circle_filled, "destination file already exists"))
         
-        message(crayon::black(cli::symbol$info, "trying to update?", sprintf("run `set_data_path(\"%s\", .update = TRUE)", path)))
+        message(
+            crayon::black(
+                cli::symbol$info, 
+                "trying to update?", 
+                sprintf("run `set_data_path(\"%s\", .update = TRUE)", 
+                        path)
+                )
+            )
         
-    } else {
-        
-        if (!file.exists(path)) {
-            
-            stop(cli::symbol$warning," ", path, " doesn't exist, nothing to link")
-            
-        } else {
-            
-            if (dir.exists(promise_data_dir)) {
-                message(crayon::green(cli::symbol$tick, "folder exists"))
-                
-            } else {
-                
-                message(cli::symbol$warning, " folder is missing, creating folder...")
-                
-                dir.create(promise_data_dir)
-                
-                message(crayon::green(cli::symbol$tick, "folder created ", promise_data_dir))
-            }
-            
-            result <- tryCatch(file.symlink(from = path, to = promise_data_path))
-            
-            if (result) {
-                
-                message(crayon::green(cli::symbol$tick, "Created symlink", promise_data_path))
-            }
-        }
-    }
+        return()
+    } 
+    
+    destination_file <- file.path(destination_dir, "promise.rda")
+    
+    result <- tryCatch(file.symlink(from = path, to = destination_file))
+    if (result)
+        message(crayon::green(cli::symbol$tick, "Created symlink", promise_data_path))
+    
+    return()
 }
     
