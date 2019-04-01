@@ -1,0 +1,37 @@
+# R for travis: see documentation at https://docs.travis-ci.com/user/languages/r
+
+language: R
+sudo: false
+cache: packages
+branches:
+    only:
+        - gh-pages
+addons:
+    apt:
+        packages:
+            - fuse
+            - libfuse-dev
+            - curl
+r_packages:
+    - dplyr
+    - xml2
+    - purrr
+    - data.table
+    - stringr
+
+r_github_packages:
+    - ropensci/DataPackageR
+
+before_install:
+    - curl https://rclone.org/install.sh | sudo bash
+    - source rclone.conf
+    - mkdir $HOME/box
+    - rclone mount box: $HOME/box
+
+before_script:
+    - mkdir $TRAVIS_BUILD_DIR/data-raw
+    - cp $TRAVIS_BUILD_DIR/vignettes/* $TRAVIS_BUILD_DIR/data-raw/
+
+script:
+    - R -e 'DataPackageR:::DataPackageR(normalizePath(".", winslash = "/"), deps = FALSE)'
+    - R -e 'devtools::build(".", binary = FALSE)'
