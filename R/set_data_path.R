@@ -57,9 +57,14 @@ set_data_path <- function(path, .update = FALSE) {
     destination_file <- file.path(destination_dir, "promise.rda")
     
     result <- tryCatch(file.symlink(from = path, to = destination_file))
-    if (result)
-        message(crayon::green(cli::symbol$tick, "Created symlink", promise_data_path))
-    
+    if (result) 
+        message(crayon::green(cli::symbol$tick, "Created symlink", destination_file))
+    else
+        message("Failed at creating symlink from ",
+                path, 
+                " to ",
+                destination_file)
+
     return()
 }
     
