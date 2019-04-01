@@ -34,7 +34,7 @@ set_data_path <- function(path, .update = FALSE) {
                     " to ",
                     destination_file)
         
-        return()
+        return(invisible())
     }
     
     # Check if file already exists
@@ -51,7 +51,7 @@ set_data_path <- function(path, .update = FALSE) {
                 )
             )
         
-        return()
+        return(invisbile())
     } 
     
     destination_file <- file.path(destination_dir, "promise.rda")
@@ -65,6 +65,6 @@ set_data_path <- function(path, .update = FALSE) {
                 " to ",
                 destination_file)
 
-    return()
+    return(invisisble())
 }
     
