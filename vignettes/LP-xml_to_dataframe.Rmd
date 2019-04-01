@@ -28,16 +28,19 @@ knitr::opts_chunk$set(eval = FALSE, tidy = FALSE)
 #'
 #' @examples
 
-xmlToDataframe <- function(data_dir, filepath, use_progress=TRUE) {
+xmlToDataframe <- function(data_dir, filepath, show_progress=TRUE, from_zip=FALSE) {
 
 # Update progress
-if (use_progress) {
+if (show_progress) {
 pb$tick()
 }
 
 # Read the xml document.
-
-xml <- xml2::read_xml(file.path(data_dir, filepath))
+if (from_zip) {
+    xml <- xml2::read_xml(unz(data_dir, filepath))
+    } else {
+        xml <- xml2::read_xml(file.path(data_dir, filepath))
+    }
 
 # Use xpath to find precise parameters and get content.
 
@@ -148,14 +151,19 @@ data_dir <- "/mnt/z/jolo_projects/promise/inst/extdata"
 
 # List all xml files.
 
-xml_files <- list.files(xml_dir)
+xml_files <- unzip(xml_dir, list = TRUE)
 
 # Apply xmlToDataframe function to all xml files.
 
-pb <- progress::progress_bar$new(total = length(xml_files))
+#pb <- progress::progress_bar$new(total = length(xml_files))
 
-pb$tick(0)
-ecg <- map(xml_files, ~xmlToDataframe(xml_dir, .x))
+#pb$tick(0)
+ecg <- map(xml_files$Name, 
+           ~xmlToDataframe(data_dir = xml_dir, 
+                           filepath = .x, 
+                           remote_location = TRUE, 
+                           use_progress = FALSE)
+           )
 
 # Combine the dataframes in the list to a data.table, fill to replace empty/
 #missing data in columns with NA.
