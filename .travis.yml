@@ -3,9 +3,6 @@
 language: R
 sudo: false
 cache: packages
-branches:
-    only:
-        - gh-pages
 addons:
     apt:
         packages:
