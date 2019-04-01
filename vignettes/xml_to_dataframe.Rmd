@@ -92,11 +92,11 @@ ecg_df <- ecg %>%
 colnames(ecg_df) <- ecg_variables
 
 diagnosis <- xml %>%
-  xml_find_all("/RestingECG/Diagnosis") %>%
+  xml2::xml_find_all("/RestingECG/Diagnosis") %>%
   .cleanedStatement()
 
 original_diagnosis <- xml %>%
-  xml_find_all("/RestingECG/OriginalDiagnosis") %>%
+  xml2::xml_find_all("/RestingECG/OriginalDiagnosis") %>%
   .cleanedStatement()
 
 pat_df <- cbind(demo_df,
@@ -146,8 +146,10 @@ library(data.table)
 library(stringr)
 library(dplyr)
 
-xml_dir <- "/mnt/c/Users/Daniel/Desktop/promise_xml"
-data_dir <- "/mnt/z/jolo_projects/promise/inst/extdata"
+xml_dir <- file.path(path.expand("~"), "box", "jolo_projects", "promise", "inst",
+                     "extdata", "promise_xml.zip")
+data_dir <- file.path(path.expand("~"), "box", "jolo_projects", "promise", "inst",
+                     "extdata")
 
 # List all xml files.
 
@@ -161,8 +163,8 @@ xml_files <- unzip(xml_dir, list = TRUE)
 ecg <- map(xml_files$Name, 
            ~xmlToDataframe(data_dir = xml_dir, 
                            filepath = .x, 
-                           remote_location = TRUE, 
-                           use_progress = FALSE)
+                           show_progress = FALSE, 
+                           from_zip = TRUE)
            )
 
 # Combine the dataframes in the list to a data.table, fill to replace empty/
