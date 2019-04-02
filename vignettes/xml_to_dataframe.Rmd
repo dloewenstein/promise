@@ -1,19 +1,19 @@
----
-title: Reading xml ECG and processing diagnosis
-author: Daniel Loewenstein
-date: '`r Sys.Date()`'
-slug: promise
-show_toc: yes
-output: knitr:::html_vignette
-vignette: >
-  %\VignetteIndexEntry{Reading xml ECG and processing diagnosis}
-  %\VignetteEngine{knitr::rmarkdown}
-  \usepackage[utf8]{inputenc}
----
+#'---
+#'title: Reading xml ECG and processing diagnosis
+#'author: Daniel Loewenstein
+#'date: '`r Sys.Date()`'
+#'slug: promise
+#'show_toc: yes
+#'output: knitr:::html_vignette
+#'vignette: >
+#'  %\VignetteIndexEntry{Reading xml ECG and processing diagnosis}
+#'  %\VignetteEngine{knitr::rmarkdown}
+#'  \usepackage[utf8]{inputenc}
+#'---
 
-```{r setup, purl=FALSE}
-knitr::opts_chunk$set(eval = FALSE, tidy = FALSE)
-```
+# ```{r setup, purl=FALSE}
+# knitr::opts_chunk$set(eval = FALSE, tidy = FALSE)
+# ```
 
 
 ```{r}

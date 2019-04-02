@@ -1,20 +1,20 @@
----
-title: Prevalence of heart failure and medical comorbidities in different electrocardiographic
-  intraventricular conduction abnormalities compared to normal conduction
-author: |-
-  Daniel Loewenstein
-  Karin Johansson
-date: '`r Sys.Date()`'
-slug: promise
-show_toc: yes
-output:
-  knitr:::html_vignette: ~
-  number_sections: yes
-vignette: >
-  %\VignetteIndexEntry{Creating promise database}
-  %\VignetteEngine{knitr::rmarkdown_notangle}
-  %\VignetteEncoding{UTF-8}
----
+#' ---
+#' title: Prevalence of heart failure and medical comorbidities in different electrocardiographic
+#'   intraventricular conduction abnormalities compared to normal conduction
+#' author: |-
+#'   Daniel Loewenstein
+#'   Karin Johansson
+#' date: '`r Sys.Date()`'
+#' slug: promise
+#' show_toc: yes
+#' output:
+#'   knitr:::html_vignette: ~
+#'   number_sections: yes
+#' vignette: >
+#'   %\VignetteIndexEntry{Creating promise database}
+#'   %\VignetteEngine{knitr::rmarkdown_notangle}
+#'   %\VignetteEncoding{UTF-8}
+#' ---
 
 ## Summary
 
