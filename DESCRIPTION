@@ -6,12 +6,12 @@ Authors@R: c(
            "Loewenstein",
            role = c("aut", "cre"),
            email = "loewenstein.daniel@gmail.com",
-           comment = c(ORCID = "0000-0003-2118-3056"),
+           comment = c(ORCID = "0000-0003-2118-3056")),
     person("Karin",
            "Johansson",
            role = c("aut", "ctb"),
-           email = "karin.g.johansson@gmail.com"),
-           comment = c(ORCID = "0000-0002-4585-0397")
+           email = "karin.g.johansson@gmail.com",
+           comment = c(ORCID = "0000-0002-4585-0397")))
 Description: ECG, Echocardiographic and demographic for 93,000 Duke University Medical Center patients.
 License: What license it uses
 Encoding: UTF-8
