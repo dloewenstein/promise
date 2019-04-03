@@ -37,7 +37,7 @@ after_success:
     - Rscript -e 'pkgdown::build_site(document = FALSE)'
     - make readme
     - sh .travis-push.sh
-    - "cp ./data/promiseData.rda $HOME/box/jolo_projects/promise/data/$(grep -i DataVersion DESCRIPTION | cut -d: -f2 | tr -d '[:space:]' | sed 's/\(.*\)/promiseData_v\1\.rda/')"
+    - sh .travis-export.sh 
 
 deploy:
     provider: pages
