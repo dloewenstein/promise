@@ -14,6 +14,11 @@ Badge](https://anaconda.org/dloewenstein/r-promise/badges/latest_release_relativ
 Badge](https://anaconda.org/dloewenstein/r-promise/badges/platforms.svg)](https://anaconda.org/dloewenstein/r-promise)
 <!-- README.md is generated from README.Rmd. Please edit that file -->
 
+The purpose of this package is to facilitate further research using the
+PROMISE database in which one finds merged clinical Echocardiography,
+Electrocardiography and Demographics data. You can navigate the
+documentation at <https://dloewenstein.github.io/promise/>
+
 ## Disclaimer
 
 Due to the fact that the data of this package contains PHI it’s stored
