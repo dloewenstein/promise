@@ -53,7 +53,7 @@ set_data_path <- function(path = NULL, .interactive = TRUE, .update = FALSE) {
     
     # Set data paths
     destination_dir  <- system.file("data", package = "promise")
-    destination_file <- system.file(paste0(filename, ".rda"), "data", package = "promise")
+    destination_file <- system.file("data", paste0(filename, ".rda"), package = "promise")
     
     if (.update) {
         stopifnot(file.exists(destination_file))
