@@ -81,7 +81,7 @@ NULL
 #' @name promiseData
 #' @docType data
 #' @title Merged Echo and ECG data within 30days
-#' @author Daniel Loewenstein, \email{loewenstein.daniel@gmial.com}, Karin Johansson, \email{karin.g.johansson@gmail.com}
+#' @author Daniel Loewenstein, \email{loewenstein.daniel@gmail.com}, Karin Johansson, \email{karin.g.johansson@gmail.com}
 #' @keywords datasets
 #' @format a \code{tbl_df} with 93118 observations on the following 111 variables.:
 #'\describe{
