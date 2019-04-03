@@ -4,7 +4,8 @@ date: '`r Sys.Date()`'
 output: github_document
 ---
 
-# Duke University Medical Center echo and ecg research database  
+# Duke University Medical Center echo and ecg research database
+[![Travis-CI Build Status](https://travis-ci.org/dloewenstein/promise.svg?branch=master)](https://travis-ci.org/dloewenstein/promise)
 [![Anaconda-Server Badge](https://anaconda.org/dloewenstein/r-promise/badges/version.svg)](https://anaconda.org/dloewenstein/r-promise)
 [![Anaconda-Server Badge](https://anaconda.org/dloewenstein/r-promise/badges/latest_release_relative_date.svg)](https://anaconda.org/dloewenstein/r-promise)
 [![Anaconda-Server Badge](https://anaconda.org/dloewenstein/r-promise/badges/platforms.svg)](https://anaconda.org/dloewenstein/r-promise)
@@ -18,50 +19,6 @@ knitr::opts_chunk$set(
 )
 ```
 
-## Project overview
-
-```shell
-.
-├── data
-│   └── promise.rda # Promise database
-├── DATADIGEST # dataversion and md5 fingerprint
-├── datapackager.yml # DatapackageR config file
-├── data-raw
-│   ├── documentation.R
-│   ├── promise.Rmd
-│   ├── promise_xml_ecg-GEN.rds
-│   └── xml_to_dataframe-GEN.R
-├── DESCRIPTION
-├── environment.yaml # environment variables
-├── inst
-│   ├── doc
-│   │   ├── LP-xml_to_dataframe.html
-│   │   ├── LP-xml_to_dataframe.Rmd
-│   │   ├── promise.html
-│   │   └── promise.Rmd
-│   └── extdata
-│       └── Logfiles
-│           ├── processing.log
-│           └── promise.html
-├── Makefile
-├── man
-│   ├── promise.Rd
-│   └── set_data_path.Rd
-├── NAMESPACE
-├── NEWS.md
-├── promise.Rproj
-├── R
-│   ├── promise.R
-│   ├── set_data_path.R
-│   └── zzz.R
-├── Read-and-delete-me
-├── README.md
-├── README.Rmd
-└── vignettes
-    ├── LP-xml_to_dataframe.Rmd
-    └── promise.Rmd
-```
-
 ## Disclaimer
 
 Due to the fact that the data of this package contains PHI it's stored securely elsewhere
@@ -73,7 +30,7 @@ To get access to the data contact:
     - Role: auth, crea
     - Email: loewenstein.daniel@gmail.com
 - Name: Karin Johansson
-    - Role: auth, crea
+    - Role: auth
     - Email: johansson.g.karin@gmail.com
 
 ## Installation
@@ -83,7 +40,7 @@ Make sure to have either ( [Box drive](https://www.box.com/en-se/resources/downl
 If you haven't already, make sure that the `devtools` package is installed
 
 ```{r, eval = FALSE}
-install.packages(devtools)
+install.packages("devtools")
 ```
 
 Continue by installing promise from github with:
@@ -110,11 +67,19 @@ library(promise)
 # If Box drive or ExpanDrive is installed you will now have a remote location
 # mapped as local folder or drive, provide the search path to function below e.g
 
-set_data_path("C:/Users/yourUserName/Box/promise/promise_v_0.1.1.rda") # Only need to run once
+#For interactive use
+set_data_path() #Will be promted with browser Window
+
+#Setting filepath directly
+set_data_path("C:/Users/yourUserName/Box/promise/promise_v.0.1.3.rda", .interactive = FALSE) # Only need to run once
+
+#For updating
+set_data_path(.update = TRUE)
 ```
 
 You have now setup access to the promise data and are now able to load the data by
 
 ```{r, eval = FALSE}
-data(promise)
+data(promiseData)
+data(ecg)
 ```
