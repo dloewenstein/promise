@@ -33,7 +33,8 @@ library(purrr)
 All the .xml ECG files have already been processed. You can read about the process [here](LP-xml_to_dataframe.html)
 
 ```{r}
-ecg <- DataPackageR::datapackager_object_read("ecg")
+#ecg <- DataPackageR::datapackager_object_read("ecg")
+load(file.path(DataPackageR::project_data_path(), "ecg.rda"))
 ```
 
 This is used for setting up a relative path during the package build.
