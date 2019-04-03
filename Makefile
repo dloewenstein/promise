@@ -6,3 +6,6 @@ all: $(rfiles)
 
 data-raw/%-GEN.R: vignettes/LP-%.Rmd
 	$(call purl,$^,$@)
+
+readme: README.Rmd
+	Rscript -e 'rmarkdown::render("$<")'
