@@ -4,10 +4,12 @@
 \alias{set_data_path}
 \title{Set promise data path}
 \usage{
-set_data_path(path, .update = FALSE)
+set_data_path(path = NULL, .interactive = TRUE, .update = FALSE)
 }
 \arguments{
 \item{path}{A \code{character} path to and including name and extension of the .rda file.}
+
+\item{.interactive}{\code{logical} Use file browser}
 
 \item{.update}{A \code{logical}, for whether or not to update symlink.}
 }

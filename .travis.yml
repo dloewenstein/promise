@@ -26,8 +26,13 @@ before_install:
     - "rclone mount box: $HOME/box --daemon"
 
 before_script:
-    - cp $TRAVIS_BUILD_DIR/vignettes/* $TRAVIS_BUILD_DIR/data-raw/
+    - $TRAVIS_BUILD_DIR/copy-data.sh
 
 script:
-    - R -e 'DataPackageR:::DataPackageR(normalizePath(".", winslash = "/"), deps = FALSE)'
-    - R -e 'devtools::build(".", binary = FALSE)'
+    - R -e 'DataPackageR::package_build(".", install = FALSE)'
+
+before_deploy: Rscript -e 'remotes::install_cran("pkgdown")'
+deploy:
+    provider: script
+    script: Rscript -e 'pkgdown:deploy_site_github()'
+    skip_cleanup: true

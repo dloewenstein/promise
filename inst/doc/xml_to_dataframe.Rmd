@@ -1,19 +1,21 @@
 ---
-title: Reading xml ECG and processing diagnosis
-author: Daniel Loewenstein
-date: '`r Sys.Date()`'
-slug: promise
-show_toc: yes
-output: knitr:::html_vignette
+{}
 vignette: >
-  %\VignetteIndexEntry{Reading xml ECG and processing diagnosis}
+  %\VignetteIndexEntry{Default Vignette Title. Add yaml title: to your document}
   %\VignetteEngine{knitr::rmarkdown}
   \usepackage[utf8]{inputenc}
 ---
 
-```{r setup, purl=FALSE}
-knitr::opts_chunk$set(eval = FALSE, tidy = FALSE)
-```
+#'---
+#'title: Reading xml ECG and processing diagnosis
+#'author: Daniel Loewenstein
+#'date: '`r Sys.Date()`'
+#'show_toc: yes
+#'---
+
+<!-- # ```{r setup, purl=FALSE} -->
+<!-- # knitr::opts_chunk$set(eval = FALSE, tidy = FALSE) -->
+<!-- # ``` -->
 
 
 ```{r}
@@ -28,16 +30,19 @@ knitr::opts_chunk$set(eval = FALSE, tidy = FALSE)
 #'
 #' @examples
 
-xmlToDataframe <- function(data_dir, filepath, use_progress=TRUE) {
+xmlToDataframe <- function(data_dir, filepath, show_progress=TRUE, from_zip=FALSE) {
 
 # Update progress
-if (use_progress) {
+if (show_progress) {
 pb$tick()
 }
 
 # Read the xml document.
-
-xml <- xml2::read_xml(file.path(data_dir, filepath))
+if (from_zip) {
+    xml <- xml2::read_xml(unz(data_dir, filepath))
+    } else {
+        xml <- xml2::read_xml(file.path(data_dir, filepath))
+    }
 
 # Use xpath to find precise parameters and get content.
 
@@ -89,11 +94,11 @@ ecg_df <- ecg %>%
 colnames(ecg_df) <- ecg_variables
 
 diagnosis <- xml %>%
-  xml_find_all("/RestingECG/Diagnosis") %>%
+  xml2::xml_find_all("/RestingECG/Diagnosis") %>%
   .cleanedStatement()
 
 original_diagnosis <- xml %>%
-  xml_find_all("/RestingECG/OriginalDiagnosis") %>%
+  xml2::xml_find_all("/RestingECG/OriginalDiagnosis") %>%
   .cleanedStatement()
 
 pat_df <- cbind(demo_df,
@@ -143,19 +148,44 @@ library(data.table)
 library(stringr)
 library(dplyr)
 
-xml_dir <- "/mnt/c/Users/Daniel/Desktop/promise_xml"
-data_dir <- "/mnt/z/jolo_projects/promise/inst/extdata"
+library(furrr)
+plan(multiprocess)
+
+xml_dir <- file.path(path.expand("~"), "promise_xml")
+data_dir <- file.path(path.expand("~"), "box", "jolo_projects", "promise", "inst",
+                     "extdata")
 
 # List all xml files.
-
-xml_files <- list.files(xml_dir)
-
+if (dir.exists(xml_dir)) {
+    xml_files <- list.files(xml_dir, full.names = FALSE)
+} else {
+    xml_files <- unzip(xml_dir, list = TRUE)
+}
 # Apply xmlToDataframe function to all xml files.
 
-pb <- progress::progress_bar$new(total = length(xml_files))
+pb <- progress::progress_bar$new(
+    format = "[:bar] :percent elapsed: :elapsfull eta: :eta",
+    total = ifelse(is.character(xml_files), length(xml_files), nrow(xml_files))
+)
 
 pb$tick(0)
-ecg <- map(xml_files, ~xmlToDataframe(xml_dir, .x))
+if (is.character(xml_files)) {
+    ecg <- future_map(xml_files,
+                     ~xmlToDataframe(
+                         data_dir = xml_dir,
+                         filepath = .x,
+                         show_progress = FALSE,
+                         from_zip = FALSE
+                     ),
+                     .progress = TRUE)
+} else {
+    ecg <- map(xml_files$Name, 
+               ~xmlToDataframe(data_dir = xml_dir, 
+                               filepath = .x, 
+                               show_progress = TRUE, 
+                               from_zip = FALSE)
+    )
+}
 
 # Combine the dataframes in the list to a data.table, fill to replace empty/
 #missing data in columns with NA.
@@ -236,16 +266,14 @@ ecg <- ecg[, `:=` (QRSDuration       = as.numeric(QRSDuration),
                    Exclude           = as.numeric(str_detect(diagnosis, exclude_pattern))),
            by = .I]
 
-setnames(ecg, c("PatientID", "QRSDuration", "RAxis"), c("MRN", "QRSDur", "AXIS"))
+setnames(ecg, c("PatientID", "QRSDuration", "RAxis", "diagnosis"), c("MRN", "QRSDur", "AXIS", "original_ecg_statement"))
 
-ecg[, `:=` (diagnosis          = NULL,
-            original_diagnosis = NULL)]
+ecg[, `:=` (original_diagnosis = NULL)]
 
 ecg <- ecg[!is.na(QRSDur)]
 
-saveRDS(ecg, file.path(DataPackageR::project_path(), "data-raw/promise_xml_ecg-GEN.rds"))
-
 ```
+
 
 
 

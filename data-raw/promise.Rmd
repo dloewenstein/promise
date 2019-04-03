@@ -1,19 +1,11 @@
 #' ---
 #' title: Prevalence of heart failure and medical comorbidities in different electrocardiographic
 #'   intraventricular conduction abnormalities compared to normal conduction
-#' author: |-
-#'   Daniel Loewenstein
-#'   Karin Johansson
+#' author: 
+#'   - Daniel Loewenstein
+#'   - Karin Johansson
 #' date: '`r Sys.Date()`'
-#' slug: promise
 #' show_toc: yes
-#' output:
-#'   knitr:::html_vignette: ~
-#'   number_sections: yes
-#' vignette: >
-#'   %\VignetteIndexEntry{Creating promise database}
-#'   %\VignetteEngine{knitr::rmarkdown_notangle}
-#'   %\VignetteEncoding{UTF-8}
 #' ---
 
 ## Summary
@@ -41,19 +33,20 @@ library(purrr)
 All the .xml ECG files have already been processed. You can read about the process [here](LP-xml_to_dataframe.html)
 
 ```{r}
-ecg <- readRDS(file.path(DataPackageR::project_path(), "data-raw/promise_xml_ecg-GEN.rds"))
+ecg <- DataPackageR::datapackager_object_read("ecg")
 ```
 
 This is used for setting up a relative path during the package build.
 
-```{r, eval=FALSE}
+```{r, eval=FALSE, echo=FALSE}
 data_dir <- DataPackageR::project_data_path()
 ```
 
-```{r, echo=FALSE}
+```{r}
 # The above chunk is showed in vignette, but stored data otherwhere during build.
 
-data_dir <- "/mnt/z/jolo_projects/promise/inst/extdata"
+data_dir <- 
+    file.path(path.expand("~"), "box", "jolo_projects", "promise", "inst", "extdata")
 ```
 
 ## Echo data
@@ -1003,7 +996,7 @@ main.df6 <- main.df5 %>%
 ```
 
 ```{r}
-promise <- droplevels(main.df6)
+promiseData <- droplevels(main.df6)
 ```
 
 

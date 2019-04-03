@@ -1,10 +1,11 @@
 configuration:
   files:
     xml_to_dataframe.Rmd:
-      enabled: yes
+      enabled: no
     promise.Rmd:
       enabled: yes
   objects:
-  - promise
+  - ecg
+  - promiseData
   render_root:
     tmp: '123733'

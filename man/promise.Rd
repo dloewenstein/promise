@@ -4,19 +4,22 @@
 \name{promise}
 \alias{promise}
 \alias{promise-package}
-\alias{promise-package}
 \title{Package Title}
 \description{
-A description of the data package
+Datapackage for demographics and ecg data derived from Duke University Hospital 2002-2017.
 }
 \details{
 promise
-A data package for promise.
+A data package for the PROMISE database.
 
-Use \code{data(package='promise')$results[, 3]} tosee a list of availabledata sets in this data package
+Use \code{data(package='promise')$results[, 3]} to see a list of available data sets in this data package
 and/or DataPackageR::load_all
 _datasets() to load them.
 }
 \seealso{
-\link{promise}
+\link{promiseData}
+\link{ecg}
+}
+\author{
+Daniel Loewenstein, \email{loewenstein.daniel@gmail.com}, Karin Johansson, \email{karin.g.johansson@gmail.com}
 }
