@@ -254,9 +254,7 @@ h6 {
 </style>
 
 
-</head>
 
-<body>
 
 <style type="text/css">
 .main-container {
@@ -281,22 +279,92 @@ img {
 button.code-folding-btn:focus {
   outline: none;
 }
+summary {
+  display: list-item;
+}
 </style>
 
 
 
-<div class="container-fluid main-container">
-
 <!-- tabsets -->
+
+<style type="text/css">
+.tabset-dropdown > .nav-tabs {
+  display: inline-table;
+  max-height: 500px;
+  min-height: 44px;
+  overflow-y: auto;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs > li.active:before {
+  content: "";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
+  content: "";
+  border: none;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+  content: "";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs > li.active {
+  display: block;
+}
+
+.tabset-dropdown > .nav-tabs > li > a,
+.tabset-dropdown > .nav-tabs > li > a:focus,
+.tabset-dropdown > .nav-tabs > li > a:hover {
+  border: none;
+  display: inline-block;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li {
+  display: block;
+  float: none;
+}
+
+.tabset-dropdown > .nav-tabs > li {
+  display: none;
+}
+</style>
+
 <script>
 $(document).ready(function () {
   window.buildTabsets("TOC");
+});
+
+$(document).ready(function () {
+  $('.tabset-dropdown > .nav-tabs > li').click(function () {
+    $(this).parent().toggleClass('nav-tabs-open')
+  });
 });
 </script>
 
 <!-- code folding -->
 
 
+
+
+</head>
+
+<body>
+
+
+<div class="container-fluid main-container">
 
 
 
@@ -309,7 +377,7 @@ $(document).ready(function () {
 </div>
 
 
-<p>#’ — #’ title: Prevalence of heart failure and medical comorbidities in different electrocardiographic #’ intraventricular conduction abnormalities compared to normal conduction #’ author: #’ - Daniel Loewenstein #’ - Karin Johansson #’ date: ‘2019-04-03’ #’ show_toc: yes #’ —</p>
+<p>#‘— #’ title: Prevalence of heart failure and medical comorbidities in different electrocardiographic #‘intraventricular conduction abnormalities compared to normal conduction #’ author: #‘- Daniel Loewenstein #’ - Karin Johansson #‘date: ’2019-04-03’ #‘show_toc: yes #’ —</p>
 <div id="summary" class="section level2">
 <h2>Summary</h2>
 <div id="date" class="section level3">
@@ -332,8 +400,16 @@ $(document).ready(function () {
 <div id="setup" class="section level2">
 <h2>Setup</h2>
 <p>First we load all the needed packages.</p>
-<pre class="r"><code>library(dplyr)
-library(stringr)
+<pre class="r"><code>library(dplyr)</code></pre>
+<pre><code>## 
+## Attaching package: 'dplyr'</code></pre>
+<pre><code>## The following objects are masked from 'package:stats':
+## 
+##     filter, lag</code></pre>
+<pre><code>## The following objects are masked from 'package:base':
+## 
+##     intersect, setdiff, setequal, union</code></pre>
+<pre class="r"><code>library(stringr)
 library(purrr)</code></pre>
 <p>All the .xml ECG files have already been processed. You can read about the process <a href="LP-xml_to_dataframe.html">here</a></p>
 <pre class="r"><code>#ecg &lt;- DataPackageR::datapackager_object_read(&quot;ecg&quot;)
@@ -452,7 +528,7 @@ df &lt;- df %&gt;%
         
         ungroup() %&gt;%
         
-        # drops the added column with number of na&#39;s
+        # drops the added column with number of na's
         select(-n)</code></pre>
 <p>Some patients when performing match in Duke DEDUCE database were flagged as having gotten a new MRN. mrn.df contains a list of the old MRNs matched to the new ones. However, 135 of the old MRNs exist in the supposedly new MRNs which we think are due to that they had an ecg and echo exam both for the old MRN and the new MRN, resulting in duplicates after the old MRN gets updated to the new MRN in our dataset.</p>
 <p>Our solution to this is:</p>
@@ -536,24 +612,24 @@ df &lt;- df %&gt;%
                 )
             / 365.25)
             )</code></pre>
-<pre class="r"><code>#&#39; Get dx file path
-#&#39;
-#&#39; @param file_name A \code{character}
-#&#39;
-#&#39; @return
-#&#39;
-#&#39; @examples
+<pre class="r"><code>#' Get dx file path
+#'
+#' @param file_name A \code{character}
+#'
+#' @return
+#'
+#' @examples
 get_path &lt;- function(file_name, sub_folder){
     path &lt;- file.path(data_dir, paste0(sub_folder, &quot;/&quot;, file_name))
 }</code></pre>
-<pre class="r"><code>#&#39; Import and format diagnosis data
-#&#39;
-#&#39; @param file_path \code{character}
-#&#39; @param abb_dx variable name, unquoted
-#&#39;
-#&#39; @return
-#&#39;
-#&#39; @examples
+<pre class="r"><code>#' Import and format diagnosis data
+#'
+#' @param file_path \code{character}
+#' @param abb_dx variable name, unquoted
+#'
+#' @return
+#'
+#' @examples
 read_diagnosis_data &lt;- function(file_name, abb_dx, type_data = c(&quot;diagnosis&quot;, &quot;procedure&quot;)) {
     
     .sub_folder &lt;- &quot;Dx&quot;
@@ -630,14 +706,14 @@ osa.df &lt;- read_diagnosis_data(file_name = &quot;OSA DX.csv&quot;, abb_dx = OS
         select(MRN, ECGDate)</code></pre>
 <p>Function to select diagnosis meeting match criteria, the first date that is not more than &gt;30 days after ECG date.</p>
 <p>For some patients there will be multiple entries with the same diagnosis date, this is due to different diagnosis codes, which one does not matter so we are selecting the first one.</p>
-<pre class="r"><code>#&#39; Match MRN to diagnosis data
-#&#39;
-#&#39; @param x \code{data.frame} with diagnosis data.
-#&#39; @param diagnosis abbreviated diagnosis, unquoted.
-#&#39;
-#&#39; @return
-#&#39;
-#&#39; @examples
+<pre class="r"><code>#' Match MRN to diagnosis data
+#'
+#' @param x \code{data.frame} with diagnosis data.
+#' @param diagnosis abbreviated diagnosis, unquoted.
+#'
+#' @return
+#'
+#' @examples
 match_mrn_diagnosis &lt;- function(x, diagnosis) { 
   
     .dx &lt;- enquo(diagnosis)
@@ -849,16 +925,16 @@ bb.OMR.df &lt;- match_mrn_rx(bb.OMR.df, BB, patient = &quot;out&quot;)</code></p
 
 
 main.df3 &lt;- purrr::reduce(combine_rx_list, left_join, by = &quot;MRN&quot;)</code></pre>
-<pre class="r"><code>#&#39; Coalesce duplicated Rx columns
-#&#39;
-#&#39; The matching of MRN and Rx created .Rx.x and .Rx.y indicator columns, this merges those.
-#&#39;
-#&#39; @param abb_rx A \code{character} Rx name
-#&#39; @param x A \code{data.frame}
-#&#39;
-#&#39; @return
-#&#39;
-#&#39; @examples
+<pre class="r"><code>#' Coalesce duplicated Rx columns
+#'
+#' The matching of MRN and Rx created .Rx.x and .Rx.y indicator columns, this merges those.
+#'
+#' @param abb_rx A \code{character} Rx name
+#' @param x A \code{data.frame}
+#'
+#' @return
+#'
+#' @examples
 coalesce_rx_columns &lt;- function(abb_rx, x){
     .rx_x &lt;- paste0(abb_rx, &quot;.Rx.x&quot;)
     .rx_y &lt;- paste0(abb_rx, &quot;.Rx.y&quot;)
