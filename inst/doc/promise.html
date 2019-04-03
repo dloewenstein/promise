@@ -336,7 +336,8 @@ $(document).ready(function () {
 library(stringr)
 library(purrr)</code></pre>
 <p>All the .xml ECG files have already been processed. You can read about the process <a href="LP-xml_to_dataframe.html">here</a></p>
-<pre class="r"><code>ecg &lt;- DataPackageR::datapackager_object_read(&quot;ecg&quot;)</code></pre>
+<pre class="r"><code>#ecg &lt;- DataPackageR::datapackager_object_read(&quot;ecg&quot;)
+load(file.path(DataPackageR::project_data_path(), &quot;ecg.rda&quot;))</code></pre>
 <p>This is used for setting up a relative path during the package build.</p>
 <pre class="r"><code># The above chunk is showed in vignette, but stored data otherwhere during build.
 
