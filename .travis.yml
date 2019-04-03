@@ -15,10 +15,10 @@ r_packages:
     - purrr
     - data.table
     - stringr
+    - pkgdown
 
 r_github_packages:
     - ropensci/DataPackageR
-    - r-lib/pkgdown
 
 before_install:
     - curl https://rclone.org/install.sh | sudo bash
@@ -42,4 +42,4 @@ deploy:
     skip_cleanup: true
     github-token: $GITHUB_TOKEN
     keep-history: true
-    local-dir: docs
+    local-dir: "docs"

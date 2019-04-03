@@ -129,7 +129,6 @@ Merged Echo and ECG data within 30days
 }
 \details{
 Date of data extraction 2017-03-31
-
 \describe{
 \item{Normal_conduction}{See end \code{vignette("promise", package = "promise")} for logic}
 \item{SVT}{= 1 if ecg diagnosis statement during parsing contained:
