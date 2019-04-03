@@ -39,12 +39,10 @@ set_data_path <- function(path = NULL, .interactive = TRUE, .update = FALSE) {
     
     # Parse filename for linking to correct file
     filename <- gsub(
-        pattern = "([0-9]|v\\.|_|\\.)",
+        pattern = "([0-9]|_v|v\\.|_|\\.)",
         replacement = "",
         x = filename
     )
-    
-    filename <- tolower(filename)
     
     filename <- tryCatch(
         match.arg(filename, c("ecg", "promiseData")),
