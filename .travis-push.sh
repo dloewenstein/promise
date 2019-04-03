@@ -8,7 +8,7 @@ setup_git() {
 commit_readme() {
 	git checkout master
 	git status
-	git add -f *.md R/* man/* inst/doc/*
+	git add -f *.md
 	git commit -m "Travis update: (Build $TRAVIS_BUILD_NUMBER)" -m "[skip ci]"
 }
 
