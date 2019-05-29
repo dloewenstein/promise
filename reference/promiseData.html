@@ -63,7 +63,7 @@
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">promise</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="Released version">1.3</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="Released version">0.1.4</span>
       </span>
     </div>
 
@@ -117,7 +117,7 @@
         
     <h2 class="hasAnchor" id="format"><a class="anchor" href="#format"></a>Format</h2>
 
-    <p>a <code>tbl_df</code> with 93118 observations on the following 111 variables.:</p><dl class='dl-horizontal'>
+    <p>A data frame with 93118 observations on the following 123 variables:</p><dl class='dl-horizontal'>
 <dt><code>MRN</code></dt><dd><p>character Medical record number</p></dd>
 <dt><code>Echo.date</code></dt><dd><p>POSIXct Echo exam date, YYYY-MM-DD HH:MM:SS</p></dd>
 <dt><code>EF</code></dt><dd><p>character Ejection Fraction incl &lt; or &gt; signs</p></dd>
@@ -128,11 +128,24 @@
 <dt><code>MR.severity</code></dt><dd><p>a factor with levels <code>INDETERMINATE FOR MR</code> <code>MILD MR</code> <code>MODERATE MR</code> <code>No MR</code> <code>SEVERE MR</code> <code>TRIVIAL MR</code></p></dd>
 <dt><code>PAP.mm.hg</code></dt><dd><p>numeric Estimated Right Ventricular Systolic Pressure from Echo, mmHg</p></dd>
 <dt><code>echo_indication</code></dt><dd><p>character Indication for Echo exam grouped in reasonable headings</p></dd>
+<dt><code>MRN</code></dt><dd><p>character Medical record number</p></dd>
 <dt><code>ECGDate</code></dt><dd><p>POSIXct ECG exam date, YYYY-MM-DD HH:MM:SS</p></dd>
+<dt><code>VentricularRate</code></dt><dd><p>numeric Ventricular rate</p></dd>
+<dt><code>AtrialRate</code></dt><dd><p>numeric Atrial rate</p></dd>
 <dt><code>PRInterval</code></dt><dd><p>numeric Interval between start of P wave and start QRS, ms</p></dd>
 <dt><code>QRSDur</code></dt><dd><p>numeric Duration of the QRS-complex, ms</p></dd>
+<dt><code>QTInterval</code></dt><dd><p>numeric Interval between start of QRS and end of T wave, ms</p></dd>
 <dt><code>QTCorrected</code></dt><dd><p>numeric Corrected QT-interval according to Bazzet's formula, ms</p></dd>
+<dt><code>PAxis</code></dt><dd><p>numeric P wave axis, degree</p></dd>
 <dt><code>AXIS</code></dt><dd><p>numeric R wave axis, degree</p></dd>
+<dt><code>TAxis</code></dt><dd><p>numeric T wave axis, degree</p></dd>
+<dt><code>QRSCount</code></dt><dd><p>numeric N QRS complexes measured</p></dd>
+<dt><code>QOnset</code></dt><dd><p>numeric Q wave onset</p></dd>
+<dt><code>QOffset</code></dt><dd><p>numeric Q wave offset</p></dd>
+<dt><code>POnset</code></dt><dd><p>numeric P wave onset</p></dd>
+<dt><code>POffset</code></dt><dd><p>numeric P wave offset</p></dd>
+<dt><code>TOffset</code></dt><dd><p>numeric T wave offset</p></dd>
+<dt><code>QTcFrederica</code></dt><dd><p>numeric Corrected QT-interval according to Frederica formula QTc=QR/RR(1/3)</p></dd>
 <dt><code>original_ecg_statement</code></dt><dd><p>character Original diagnosis statement in raw ECG XML</p></dd>
 <dt><code>filepath</code></dt><dd><p>character Name of the raw ECG XML file</p></dd>
 <dt><code>Normal_conduction</code></dt><dd><p>logical</p></dd>
@@ -265,8 +278,8 @@
     
     <h2 class="hasAnchor" id="see-also"><a class="anchor" href="#see-also"></a>See also</h2>
 
-    <div class='dont-index'><p><a href='https://www.rdocumentation.org/packages/base/topics/delayedAssign'>promise</a>
-ecg</p></div>
+    <div class='dont-index'><p><code><a href='https://www.rdocumentation.org/packages/base/topics/delayedAssign'>promise</a></code>
+<code>ecg</code></p></div>
     
 
   </div>
