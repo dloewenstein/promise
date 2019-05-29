@@ -237,6 +237,25 @@ demo.df <- read.csv(file.path(data_dir, "DOB_GENDER_Race_DOD.csv"),
 
 ```
 
+We discovered that many patients were missing or having erroneous death data.
+This was due to the fact that Duke had just started pulling this data from
+Social Security Death Index which had not had an oppurtunity to confirm date of
+death.
+
+Hence, 2019-05-29 we pulled new data regarding Date of death and Patient
+Death Indicator based on the MRNs in the file DOB_GENDER_RACE_DOD.csv.
+36 patients did not have a match in the output from Deduce which is probably
+due to updated MRNs, these patients are however not affected by missing data.
+
+```{r}
+demo_patch <- read.csv(file.path(data_dir, "patch", "patch_DOD_190529.csv"),
+                    stringsAsFactors = FALSE,
+                    na.strings = c(""," ","  ", "NA", "N/A"),
+                    strip.white = TRUE)
+```
+
+
+
 Renaming column variables, setting date columns in POSIXct format, (POSIXlt uses a list format, while ct uses time in seconds from the origin, which is more memory effective), converting ordinal variables to factors.
 
 ```{r}
@@ -252,6 +271,26 @@ demo.df <- demo.df %>%
                DOD = as.POSIXct(Patient.Death.Date, 
                                 format = "%m/%d/%Y %H:%M:%S", 
                                 tz = "America/New_York"))
+
+demo_patch <- demo_patch %>% 
+    transmute(MRN = Duke.MRN,
+              Death.index = as.factor(Patient.Death.Indicator),
+              DOD = as.POSIXct(Patient.Death.Date,
+                               format = "%m/%d/%Y %H:%M:%S", 
+                                tz = "America/New_York"))
+```
+
+```{r}
+demo_in_patch <- semi_join(demo.df, demo_patch, by = "MRN")
+demo_in_patch <- left_join(
+    select(demo_in_patch, -Death.index, -DOD),
+    demo_patch,
+    by = "MRN"
+)
+demo.df <- bind_rows(
+    anti_join(demo.df, demo_in_patch, by = "MRN"),
+    demo_in_patch
+)
 ```
 
 
