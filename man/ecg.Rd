@@ -4,14 +4,26 @@
 \name{ecg}
 \alias{ecg}
 \title{PROMISE ECG data}
-\format{a \code{data.table} with 125462 observations on the following 23 variables:
+\format{A data frame with 125462 observations on the following 35 variables.
 \describe{
 \item{\code{MRN}}{character Medical record number}
 \item{\code{ECGDate}}{POSIXct ECG exam date, YYYY-MM-DD HH:MM:SS}
+\item{\code{VentricularRate}}{numeric Ventricular rate}
+\item{\code{AtrialRate}}{numeric Atrial rate}
 \item{\code{PRInterval}}{numeric Interval between start of P wave and start QRS, ms}
 \item{\code{QRSDur}}{numeric Duration of the QRS-complex, ms}
+\item{\code{QTInterval}}{numeric Interval between start of QRS and end of T wave, ms}
 \item{\code{QTCorrected}}{numeric Corrected QT-interval according to Bazzet's formula, ms}
+\item{\code{PAxis}}{numeric P wave axis, degree}
 \item{\code{AXIS}}{numeric R wave axis, degree}
+\item{\code{TAxis}}{numeric T wave axis, degree}
+\item{\code{QRSCount}}{numeric N QRS complexes measured}
+\item{\code{QOnset}}{numeric Q wave onset}
+\item{\code{QOffset}}{numeric Q wave offset}
+\item{\code{POnset}}{numeric P wave onset}
+\item{\code{POffset}}{numeric P wave offset}
+\item{\code{TOffset}}{numeric T wave offset}
+\item{\code{QTcFrederica}}{numeric Corrected QT-interval according to Frederica formula QTc=QR/RR(1/3)}
 \item{\code{original_ecg_statement}}{character Original diagnosis statement in raw ECG XML}
 \item{\code{filepath}}{character Name of the raw ECG XML file}
 \item{\code{Normal_conduction}}{logical}
@@ -68,8 +80,8 @@ Date of data extraction 2017-03-31
 }
 }
 \seealso{
-\link{promise}
-\link{promiseData}
+\code{\link{promise}}
+\code{\link{promiseData}}
 }
 \author{
 Daniel Loewenstein, \email{loewenstein.daniel@gmail.com}

@@ -4,7 +4,7 @@
 \name{promise}
 \alias{promise}
 \alias{promise-package}
-\title{Package Title}
+\title{PROMISE ECHO ECG database}
 \description{
 Datapackage for demographics and ecg data derived from Duke University Hospital 2002-2017.
 }
@@ -17,8 +17,8 @@ and/or DataPackageR::load_all
 _datasets() to load them.
 }
 \seealso{
-\link{promiseData}
-\link{ecg}
+\code{\link{promiseData}}
+\code{\link{ecg}}
 }
 \author{
 Daniel Loewenstein, \email{loewenstein.daniel@gmail.com}, Karin Johansson, \email{karin.g.johansson@gmail.com}

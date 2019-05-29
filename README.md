@@ -1,6 +1,6 @@
 PROMISE
 ================
-2019-04-03
+2019-05-29
 
 # Duke University Medical Center echo and ecg research database
 
@@ -79,7 +79,7 @@ library(promise)
 set_data_path() #Will be promted with browser Window
 
 #Setting filepath directly
-set_data_path("C:/Users/yourUserName/Box/promise/promise_v.0.1.3.rda", .interactive = FALSE) # Only need to run once
+set_data_path("C:/Users/yourUserName/Box/promise/promise_v0.1.5.rda", .interactive = FALSE) # Only need to run once
 
 #For updating
 set_data_path(.update = TRUE)

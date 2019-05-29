@@ -377,7 +377,7 @@ $(document).ready(function () {
 </div>
 
 
-<p>#‘— #’ title: Prevalence of heart failure and medical comorbidities in different electrocardiographic #‘intraventricular conduction abnormalities compared to normal conduction #’ author: #‘- Daniel Loewenstein #’ - Karin Johansson #‘date: ’2019-04-03’ #‘show_toc: yes #’ —</p>
+<p>#‘— #’ title: Prevalence of heart failure and medical comorbidities in different electrocardiographic #‘intraventricular conduction abnormalities compared to normal conduction #’ author: #‘- Daniel Loewenstein #’ - Karin Johansson #‘date: ’2019-05-29’ #‘show_toc: yes #’ —</p>
 <div id="summary" class="section level2">
 <h2>Summary</h2>
 <div id="date" class="section level3">
@@ -569,6 +569,12 @@ df &lt;- df %&gt;%
                     stringsAsFactors = FALSE,
                     na.strings = c(&quot;&quot;,&quot; &quot;,&quot;  &quot;, &quot;NA&quot;, &quot;N/A&quot;),
                     strip.white = TRUE)</code></pre>
+<p>We discovered that many patients were missing or having erroneous death data. This was due to the fact that Duke had just started pulling this data from Social Security Death Index which had not had an oppurtunity to confirm date of death.</p>
+<p>Hence, 2019-05-29 we pulled new data regarding Date of death and Patient Death Indicator based on the MRNs in the file DOB_GENDER_RACE_DOD.csv. 36 patients did not have a match in the output from Deduce which is probably due to updated MRNs, these patients are however not affected by missing data.</p>
+<pre class="r"><code>demo_patch &lt;- read.csv(file.path(data_dir, &quot;patch&quot;, &quot;patch_DOD_190529.csv&quot;),
+                    stringsAsFactors = FALSE,
+                    na.strings = c(&quot;&quot;,&quot; &quot;,&quot;  &quot;, &quot;NA&quot;, &quot;N/A&quot;),
+                    strip.white = TRUE)</code></pre>
 <p>Renaming column variables, setting date columns in POSIXct format, (POSIXlt uses a list format, while ct uses time in seconds from the origin, which is more memory effective), converting ordinal variables to factors.</p>
 <pre class="r"><code>demo.df &lt;- demo.df %&gt;%
         transmute(MRN = Duke.MRN, 
@@ -581,7 +587,24 @@ df &lt;- df %&gt;%
                Death.index = as.factor(Patient.Death.Indicator),
                DOD = as.POSIXct(Patient.Death.Date, 
                                 format = &quot;%m/%d/%Y %H:%M:%S&quot;, 
+                                tz = &quot;America/New_York&quot;))
+
+demo_patch &lt;- demo_patch %&gt;% 
+    transmute(MRN = Duke.MRN,
+              Death.index = as.factor(Patient.Death.Indicator),
+              DOD = as.POSIXct(Patient.Death.Date,
+                               format = &quot;%m/%d/%Y %H:%M:%S&quot;, 
                                 tz = &quot;America/New_York&quot;))</code></pre>
+<pre class="r"><code>demo_in_patch &lt;- semi_join(demo.df, demo_patch, by = &quot;MRN&quot;)
+demo_in_patch &lt;- left_join(
+    select(demo_in_patch, -Death.index, -DOD),
+    demo_patch,
+    by = &quot;MRN&quot;
+)
+demo.df &lt;- bind_rows(
+    anti_join(demo.df, demo_in_patch, by = &quot;MRN&quot;),
+    demo_in_patch
+)</code></pre>
 <p>Let’s clean up the Race factor levels a bit.</p>
 <pre class="r"><code>levels(demo.df$Race) &lt;- list(&quot;Mix&quot;              = c(&quot;2 OR MORE RACES&quot;, 
                                                     &quot;MULTIRACIAL&quot;),
