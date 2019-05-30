@@ -1,28 +1,17 @@
-DataVersion: 0.1.5
-=======================
-Package built in non-interactive mode
+# promise 0.1.4
 
 DataVersion: 0.1.5
 =======================
-Package built in non-interactive mode
 
-DataVersion: 0.1.5
-=======================
-Package built in non-interactive mode
+- Added new ECG variables:
+    - VentricularRate, AtrialRate, QTInterval, PAxis, TAxis, QRSCount,
+    QOnset, QOffset, POnset, POffset, TOffset, QRcFrederica
+- Updated promiseData:
+    - new data regarding death indicator and date of death pulled from 
+    DEDUCE
+- Fixed typo in set_data_path() example
 
-DataVersion: 0.1.5
-=======================
-Package built in non-interactive mode
-
-DataVersion: 0.1.5
-=======================
-Package built in non-interactive mode
-
-DataVersion: 0.1.5
-=======================
-Package built in non-interactive mode
-
-# promise 1.3.0
+# promise 0.1.3
 
 ## DataVersion: 0.1.4
 
@@ -34,7 +23,7 @@ Added ecg data available via `data(ecg)`
 
 Added original ECG diagnosis statement
 
-# promise 1.2.0
+# promise 0.1.2
 
 ## DataVersion: 0.1.2
 

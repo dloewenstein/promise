@@ -14,7 +14,7 @@
 #' @examples 
 #' \dontrun{
 #' #First non-interactive use:
-#' set_data_path("C:/Users/usename/Box/jolo_projects/promise/data/promise_v.0.1.3.rda, .interactive = FALSE)
+#' set_data_path("C:/Users/usename/Box/jolo_projects/promise/data/promise_v.0.1.3.rda", .interactive = FALSE)
 #' 
 #' #For interactive use
 #' set_data_path()
