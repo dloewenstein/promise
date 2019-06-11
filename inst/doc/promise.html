@@ -377,7 +377,7 @@ $(document).ready(function () {
 </div>
 
 
-<p>#‘— #’ title: Prevalence of heart failure and medical comorbidities in different electrocardiographic #‘intraventricular conduction abnormalities compared to normal conduction #’ author: #‘- Daniel Loewenstein #’ - Karin Johansson #‘date: ’2019-05-29’ #‘show_toc: yes #’ —</p>
+<p>#‘— #’ title: Prevalence of heart failure and medical comorbidities in different electrocardiographic #‘intraventricular conduction abnormalities compared to normal conduction #’ author: #‘- Daniel Loewenstein #’ - Karin Johansson #‘date: ’2019-06-11’ #‘show_toc: yes #’ —</p>
 <div id="summary" class="section level2">
 <h2>Summary</h2>
 <div id="date" class="section level3">
@@ -419,15 +419,28 @@ load(file.path(DataPackageR::project_data_path(), &quot;ecg.rda&quot;))</code></
 
 data_dir &lt;- 
     file.path(path.expand(&quot;~&quot;), &quot;box&quot;, &quot;jolo_projects&quot;, &quot;promise&quot;, &quot;inst&quot;, &quot;extdata&quot;)</code></pre>
+<p>Setup some convenience wrappers</p>
+<pre class="r"><code>as_POSIXct &lt;- function(date) {
+    as.POSIXct(date,
+               tz = &quot;America/New_York&quot;,
+               tryFormats = c(&quot;%m/%d/%Y %H:%M:%OS&quot;,
+                              &quot;%m/%d/%Y %H:%M&quot;))
+}
+
+read_csv &lt;- function(file_path) {
+    read.csv(file_path,
+             stringsAsFactors = FALSE,
+             na.strings = c(&quot;&quot;,&quot; &quot;,&quot;  &quot;, &quot;NA&quot;, &quot;N/A&quot;),
+             strip.white = TRUE)
+}
+
+IRB_APPROVED_DATE &lt;- as_POSIXct(&quot;3/31/2017 00:00:00&quot;)</code></pre>
 </div>
 <div id="echo-data" class="section level2">
 <h2>Echo data</h2>
 <p>Time to read in all the echo data.</p>
 <pre class="r"><code>#Reads echo data
-echo &lt;- read.csv(file.path(data_dir, &quot;all_echoes.csv&quot;), 
-                 stringsAsFactors = FALSE,
-                na.strings = c(&quot;&quot;,&quot; &quot;,&quot;  &quot;, &quot;NA&quot;, &quot;N/A&quot;),
-                strip.white = TRUE)</code></pre>
+echo &lt;- read_csv(file.path(data_dir, &quot;all_echoes.csv&quot;))</code></pre>
 <p>Since all the data are exported from the Deduce database, Duke University Medical Center, Durham, NC, USA we noticed that it’s important to set the timezone (tz) explicitly, since some processing afterwards have been done outside NC and the default R settings is to use the local timezone.</p>
 <pre class="r"><code>echo &lt;- echo %&gt;%
         rename(MRN = log_history, 
@@ -439,9 +452,7 @@ echo &lt;- read.csv(file.path(data_dir, &quot;all_echoes.csv&quot;),
                MR.severity = acq_mr,
                echo_indication = log_sp1) %&gt;%
         
-        mutate(Echo.date = as.POSIXct(log_dos, 
-                                      format = &quot;%m/%d/%Y %H:%M:%S&quot;, 
-                                      tz = &quot;America/New_York&quot;),
+        mutate(Echo.date = as_POSIXct(log_dos),
                PAP.mm.hg = as.numeric(PAP.mm.hg),
                EF.x = as.numeric(  #  had to remove characters to be able to convert to numericals
                    str_replace_all(EF, 
@@ -537,9 +548,7 @@ df &lt;- df %&gt;%
 <li>update the remaining old MRNs with the new numbers for further patient data mathing which uses the updated MRNs.</li>
 </ul>
 <pre class="r"><code># Reads in updated MRN data
-mrn.df &lt;- read.csv(file.path(data_dir, &quot;changedMrns.csv&quot;), 
-                   stringsAsFactors = FALSE,
-                   strip.white = TRUE)
+mrn.df &lt;- read_csv(file.path(data_dir, &quot;changedMrns.csv&quot;))
 
 # sets columnnames
 colnames(mrn.df) &lt;- c(&quot;MRN&quot;, &quot;new.MRN&quot;)</code></pre>
@@ -565,46 +574,106 @@ df &lt;- df %&gt;%
 <div id="demographics" class="section level2">
 <h2>Demographics</h2>
 <p>Reading in demographics datas regarding DOB, gender, race and date of death</p>
-<pre class="r"><code>demo.df &lt;- read.csv(file.path(data_dir, &quot;DOB_GENDER_Race_DOD.csv&quot;),
-                    stringsAsFactors = FALSE,
-                    na.strings = c(&quot;&quot;,&quot; &quot;,&quot;  &quot;, &quot;NA&quot;, &quot;N/A&quot;),
-                    strip.white = TRUE)</code></pre>
+<pre class="r"><code>demo.df &lt;- read_csv(file.path(data_dir, &quot;DOB_GENDER_Race_DOD.csv&quot;))</code></pre>
 <p>We discovered that many patients were missing or having erroneous death data. This was due to the fact that Duke had just started pulling this data from Social Security Death Index which had not had an oppurtunity to confirm date of death.</p>
 <p>Hence, 2019-05-29 we pulled new data regarding Date of death and Patient Death Indicator based on the MRNs in the file DOB_GENDER_RACE_DOD.csv. 36 patients did not have a match in the output from Deduce which is probably due to updated MRNs, these patients are however not affected by missing data.</p>
-<pre class="r"><code>demo_patch &lt;- read.csv(file.path(data_dir, &quot;patch&quot;, &quot;patch_DOD_190529.csv&quot;),
-                    stringsAsFactors = FALSE,
-                    na.strings = c(&quot;&quot;,&quot; &quot;,&quot;  &quot;, &quot;NA&quot;, &quot;N/A&quot;),
-                    strip.white = TRUE)</code></pre>
+<pre class="r"><code>demo_patch &lt;- read_csv(file.path(data_dir, &quot;patch&quot;, &quot;patch_DOD_190529.csv&quot;))
+
+demo_patch_2 &lt;- read_csv(file.path(data_dir, &quot;patch&quot;, &quot;patch_DOD_manual_review_190530.csv&quot;))
+
+demo_patch_3 &lt;- read_csv(file.path(data_dir, &quot;patch&quot;, &quot;patch_DOD_manual_review_190605.csv&quot;))</code></pre>
 <p>Renaming column variables, setting date columns in POSIXct format, (POSIXlt uses a list format, while ct uses time in seconds from the origin, which is more memory effective), converting ordinal variables to factors.</p>
 <pre class="r"><code>demo.df &lt;- demo.df %&gt;%
         transmute(MRN = Duke.MRN, 
                Gender = as.factor(Patient.Gender), 
                Race = as.factor(Patient.Race), 
-               DOB = as.POSIXct(Patient.Date.of.Birth, 
-                                format = &quot;%m/%d/%Y %H:%M:%S&quot;, 
-                                tz = &quot;America/New_York&quot;),
+               DOB = as_POSIXct(Patient.Date.of.Birth),
                Age.at.ECG = as.integer(0), # for future use
-               Death.index = as.factor(Patient.Death.Indicator),
-               DOD = as.POSIXct(Patient.Death.Date, 
-                                format = &quot;%m/%d/%Y %H:%M:%S&quot;, 
-                                tz = &quot;America/New_York&quot;))
+               Death.index = Patient.Death.Indicator,
+               DOD = as_POSIXct(Patient.Death.Date),
+               Alive.date = if_else(Death.index == &quot;ALIVE&quot;,
+                                    IRB_APPROVED_DATE,
+                                    as_POSIXct(NA)
+                                    )
+               )
+
+# Add original data extraction date if ALIVE status
+# don't have IRB approval to use later information.
 
 demo_patch &lt;- demo_patch %&gt;% 
     transmute(MRN = Duke.MRN,
-              Death.index = as.factor(Patient.Death.Indicator),
-              DOD = as.POSIXct(Patient.Death.Date,
-                               format = &quot;%m/%d/%Y %H:%M:%S&quot;, 
-                                tz = &quot;America/New_York&quot;))</code></pre>
-<pre class="r"><code>demo_in_patch &lt;- semi_join(demo.df, demo_patch, by = &quot;MRN&quot;)
+              Death.index = Patient.Death.Indicator,
+              DOD = as_POSIXct(Patient.Death.Date),
+              Alive.date = if_else(Death.index == &quot;ALIVE&quot;,
+                                    IRB_APPROVED_DATE,
+                                    as_POSIXct(NA)
+                                    )
+              )
+
+demo_patch_2 &lt;- demo_patch_2 %&gt;% 
+    transmute(MRN = Duke.MRN,
+              Death.index = Patient.Death.Indicator,
+              DOD = as_POSIXct(Patient.Death.Date),
+              Alive.date = as_POSIXct(Alive.date),
+              Alive.date = if_else(Alive.date &gt; IRB_APPROVED_DATE,
+                                   IRB_APPROVED_DATE,
+                                   Alive.date)
+              )
+
+demo_patch_3 &lt;- demo_patch_3 %&gt;% 
+    transmute(MRN = Duke.MRN,
+              Death.index = Patient.Death.Indicator,
+              DOD = as_POSIXct(Patient.Death.Date),
+              Alive.date = as_POSIXct(Alive.date),
+              Alive.date = if_else(Alive.date &gt; IRB_APPROVED_DATE,
+                                   IRB_APPROVED_DATE,
+                                   Alive.date)
+              )</code></pre>
+<p>The patch will be performed accordingly: <code>patch_DOD_manual_review_190605.csv</code> used to update <code>patch_DOD_manual_review_190530.csv</code> -&gt; result will be used to update <code>patch_DOD_190529.csv</code> -&gt; result will be used to update original data.</p>
+<pre class="r"><code># select data not in latest patch and then add latest patch.
+demo_manual_patch &lt;- anti_join(demo_patch_2, demo_patch_3, by = &quot;MRN&quot;) %&gt;% 
+    bind_rows(demo_patch_3)
+
+# select data not in above patch and then add.
+demo_patch &lt;- anti_join(demo_patch, demo_manual_patch, by = &quot;MRN&quot;) %&gt;% 
+    bind_rows(demo_manual_patch)
+
+# select all rows that have patched data
+demo_in_patch &lt;- semi_join(demo.df, demo_patch, by = &quot;MRN&quot;)
+
+# replace old columns with patched data
 demo_in_patch &lt;- left_join(
     select(demo_in_patch, -Death.index, -DOD),
     demo_patch,
     by = &quot;MRN&quot;
 )
+
+# update rows missing alive date
+
+demo_in_patch &lt;- demo_in_patch %&gt;% 
+    mutate(Alive.date = if_else(is.na(Alive.date.x),
+                                Alive.date.y,
+                                Alive.date.x)) %&gt;% 
+    mutate(Death.index = if_else(!is.na(Alive.date),
+                                 &quot;ALIVE&quot;,
+                                 Death.index)) %&gt;% 
+    select(-Alive.date.x, -Alive.date.y)
+
+# IRB approval doesn't include use of information after orginal
+# extraction date, if DOD later -&gt; change to ALIVE and add alive date
+dod_after_IRB &lt;- which(demo_in_patch$DOD &gt; IRB_APPROVED_DATE)
+
+demo_in_patch[dod_after_IRB, c(&quot;Death.index&quot;, &quot;DOD&quot;, &quot;Alive.date&quot;)] &lt;- 
+    list(&quot;ALIVE&quot;, as_POSIXct(NA), IRB_APPROVED_DATE)
+
+# select data not in patch and then add patched rows
 demo.df &lt;- bind_rows(
     anti_join(demo.df, demo_in_patch, by = &quot;MRN&quot;),
     demo_in_patch
-)</code></pre>
+)
+
+demo.df &lt;- demo.df %&gt;% 
+    mutate(Death.index = as.factor(Death.index))</code></pre>
 <p>Let’s clean up the Race factor levels a bit.</p>
 <pre class="r"><code>levels(demo.df$Race) &lt;- list(&quot;Mix&quot;              = c(&quot;2 OR MORE RACES&quot;, 
                                                     &quot;MULTIRACIAL&quot;),
@@ -662,29 +731,21 @@ read_diagnosis_data &lt;- function(file_name, abb_dx, type_data = c(&quot;diagno
     .dx_code &lt;- paste0(quo_name(.abb_dx), &quot;.Code&quot;)
     .dx_date &lt;- paste0(quo_name(.abb_dx), &quot;.Date&quot;)
     
-    .raw_data &lt;- read.csv(
-        .file_path,
-        stringsAsFactors = FALSE,
-        na.strings = c(&quot;&quot;,&quot; &quot;,&quot;  &quot;, &quot;NA&quot;, &quot;N/A&quot;)
-        )
+    .raw_data &lt;- read_csv(.file_path)
     
     if (type_data[1] == &quot;diagnosis&quot;) {
     .formatted_data &lt;- .raw_data %&gt;% 
         rename(MRN         = Duke.MRN,
                !!.dx_code := ICD.Diagnosis.Code,
                !!.dx_date := Diagnosis.Date) %&gt;% 
-        mutate(!!.dx_date := as.POSIXct(.data[[!!.dx_date]],
-                                     format = &quot;%m/%d/%Y %H:%M:%S&quot;,
-                                     tz     = &quot;America/New_York&quot;)
+        mutate(!!.dx_date := as_POSIXct(.data[[!!.dx_date]])
                )
     } else if (type_data[1] == &quot;procedure&quot;) {
             .formatted_data &lt;- .raw_data %&gt;% 
         rename(MRN         = Duke.MRN,
                !!.dx_code := ICD.Procedure.Code,
                !!.dx_date := Procedure.Date) %&gt;% 
-        mutate(!!.dx_date := as.POSIXct(.data[[!!.dx_date]],
-                                     format = &quot;%m/%d/%Y %H:%M:%S&quot;,
-                                     tz     = &quot;America/New_York&quot;),
+        mutate(!!.dx_date := as_POSIXct(.data[[!!.dx_date]]),
                !!quo_name(.abb_dx) := as.factor(1)) %&gt;%
                 group_by(MRN) %&gt;%
                 filter(!!.dx_date == min(!!.dx_date)) %&gt;%
@@ -694,17 +755,12 @@ read_diagnosis_data &lt;- function(file_name, abb_dx, type_data = c(&quot;diagno
 }</code></pre>
 <div id="procedure-data" class="section level3">
 <h3>Procedure data</h3>
-<pre class="r"><code>crt.df &lt;- read.csv(get_path(&quot;CRT Codes.csv&quot;, &quot;Dx&quot;), 
-                   stringsAsFactors = FALSE,
-                   na.strings = c(&quot;&quot;,&quot; &quot;,&quot;  &quot;, &quot;NA&quot;, &quot;N/A&quot;)
-                   )
+<pre class="r"><code>crt.df &lt;- read_csv(get_path(&quot;CRT Codes.csv&quot;, &quot;Dx&quot;))
 
 crt.df &lt;- crt.df %&gt;%
         rename(MRN = Duke.MRN, 
                CRT.Date = ICD.CPT.Procedure.Date) %&gt;%
-        mutate(CRT.Date = as.POSIXct(CRT.Date, 
-                                    format = &quot;%m/%d/%Y %H:%M:%S&quot;, 
-                                    tz = &quot;America/New_York&quot;),
+        mutate(CRT.Date = as_POSIXct(CRT.Date),
                CRT = as.factor(1)
                ) %&gt;%
         group_by(MRN) %&gt;%
@@ -804,9 +860,7 @@ main.df2 &lt;- main.df2 %&gt;%
     .path &lt;- get_path(file_name = file_name,
                       sub_folder = &quot;Medications&quot;)
     
-    .rx_data &lt;- read.csv(.path,
-                         stringsAsFactors = FALSE,
-                         na.strings = c(&quot;&quot;,&quot; &quot;,&quot;  &quot;, &quot;NA&quot;, &quot;N/A&quot;))
+    .rx_data &lt;- read_csv(.path)
     
     if (patient[1] == &quot;in&quot;) {
         .rx_name &lt;- paste0(quo_name(.rx), &quot;.Rx.Name&quot;)
@@ -818,12 +872,8 @@ main.df2 &lt;- main.df2 %&gt;%
                    !!.rx_name := Medication.Name,
                    !!.rx_start_date := Start.Date,
                    !!.rx_end_date   := End.Date) %&gt;% 
-            mutate(!!.rx_start_date := as.POSIXct(.data[[!!.rx_start_date]],
-                                                  format = &quot;%m/%d/%Y %H:%M:%S&quot;, 
-                                                  tz = &quot;America/New_York&quot;),
-                   !!.rx_end_date   := as.POSIXct(.data[[!!.rx_end_date]],
-                                                  format = &quot;%m/%d/%Y %H:%M:%S&quot;, 
-                                                  tz = &quot;America/New_York&quot;)
+            mutate(!!.rx_start_date := as_POSIXct(.data[[!!.rx_start_date]]),
+                   !!.rx_end_date   := as_POSIXct(.data[[!!.rx_end_date]])
             )
     } else if (patient[1] == &quot;out&quot;) {
         .rx_name &lt;- paste0(quo_name(.rx), &quot;.Rx.OMR.Name&quot;)
@@ -834,9 +884,7 @@ main.df2 &lt;- main.df2 %&gt;%
             rename(MRN = Duke.MRN,
                    !!.rx_name := OMR.Medication.Name,
                    !!.rx_date := OMR.Report.Date) %&gt;% 
-            mutate(!!.rx_date := as.POSIXct(.data[[!!.rx_date]],
-                                            format = &quot;%m/%d/%Y %H:%M:%S&quot;, 
-                                                  tz = &quot;America/New_York&quot;)
+            mutate(!!.rx_date := as_POSIXct(.data[[!!.rx_date]])
             )
     }
 }</code></pre>
@@ -1001,11 +1049,7 @@ for(rx in coalesce_list){
         rename(MRN = Duke.MRN,
                !!.lab_date := Specimen.Collection.Date,
                !!.lab_value := Text.Result) %&gt;% 
-        mutate(!!.lab_date := as.POSIXct(.data[[!!.lab_date]],
-                                         tryFormats = c(
-                                             &quot;%m/%d/%Y %H:%M:%S&quot;,
-                                             &quot;%m/%d/%Y %H:%M&quot;),
-                                         tz = &quot;America/New_York&quot;)
+        mutate(!!.lab_date := as_POSIXct(.data[[!!.lab_date]])
         ) %&gt;% 
         # lab values contains strings like &gt; &lt; for greater, lower than, also , as thousand marker
         # remove for coercion to numeric.
@@ -1219,6 +1263,10 @@ main.df6 &lt;- main.df5 %&gt;%
         select(-n_entries) %&gt;%
         ungroup()</code></pre>
 <pre class="r"><code>promiseData &lt;- droplevels(main.df6)</code></pre>
+<p>And finally, remove patients either missing Death.index n= 1 or status DECEASED but missing DOD n = 154</p>
+<pre class="r"><code>promiseData &lt;- promiseData %&gt;% 
+    filter( !is.na(Death.index) ) %&gt;% 
+    filter( !(Death.index == &quot;DECEASED&quot; &amp; is.na(DOD)) )</code></pre>
 </div>
 </div>
 

@@ -58,16 +58,34 @@ data_dir <-
     file.path(path.expand("~"), "box", "jolo_projects", "promise", "inst", "extdata")
 ```
 
+Setup some convenience wrappers
+
+```{r}
+as_POSIXct <- function(date) {
+    as.POSIXct(date,
+               tz = "America/New_York",
+               tryFormats = c("%m/%d/%Y %H:%M:%OS",
+                              "%m/%d/%Y %H:%M"))
+}
+
+read_csv <- function(file_path) {
+    read.csv(file_path,
+             stringsAsFactors = FALSE,
+             na.strings = c(""," ","  ", "NA", "N/A"),
+             strip.white = TRUE)
+}
+
+IRB_APPROVED_DATE <- as_POSIXct("3/31/2017 00:00:00")
+```
+
+
 ## Echo data
 
 Time to read in all the echo data.
 
 ```{r, echo_data}
 #Reads echo data
-echo <- read.csv(file.path(data_dir, "all_echoes.csv"), 
-                 stringsAsFactors = FALSE,
-                na.strings = c(""," ","  ", "NA", "N/A"),
-                strip.white = TRUE)
+echo <- read_csv(file.path(data_dir, "all_echoes.csv"))
 ```
 
 Since all the data are exported from the Deduce database, Duke University Medical Center, Durham, NC, USA we noticed that it's important to set the timezone (tz) explicitly, since some processing afterwards have been done outside NC and the default R settings is to use the local timezone.
@@ -83,9 +101,7 @@ echo <- echo %>%
                MR.severity = acq_mr,
                echo_indication = log_sp1) %>%
         
-        mutate(Echo.date = as.POSIXct(log_dos, 
-                                      format = "%m/%d/%Y %H:%M:%S", 
-                                      tz = "America/New_York"),
+        mutate(Echo.date = as_POSIXct(log_dos),
                PAP.mm.hg = as.numeric(PAP.mm.hg),
                EF.x = as.numeric(  #  had to remove characters to be able to convert to numericals
                    str_replace_all(EF, 
@@ -196,9 +212,7 @@ which uses the updated MRNs.
 
 ```{r}
 # Reads in updated MRN data
-mrn.df <- read.csv(file.path(data_dir, "changedMrns.csv"), 
-                   stringsAsFactors = FALSE,
-                   strip.white = TRUE)
+mrn.df <- read_csv(file.path(data_dir, "changedMrns.csv"))
 
 # sets columnnames
 colnames(mrn.df) <- c("MRN", "new.MRN")
@@ -238,11 +252,7 @@ df <- df %>%
 Reading in demographics datas regarding DOB, gender, race and date of death
 
 ```{r}
-demo.df <- read.csv(file.path(data_dir, "DOB_GENDER_Race_DOD.csv"),
-                    stringsAsFactors = FALSE,
-                    na.strings = c(""," ","  ", "NA", "N/A"),
-                    strip.white = TRUE)
-
+demo.df <- read_csv(file.path(data_dir, "DOB_GENDER_Race_DOD.csv"))
 ```
 
 We discovered that many patients were missing or having erroneous death data.
@@ -256,10 +266,11 @@ Death Indicator based on the MRNs in the file DOB_GENDER_RACE_DOD.csv.
 due to updated MRNs, these patients are however not affected by missing data.
 
 ```{r}
-demo_patch <- read.csv(file.path(data_dir, "patch", "patch_DOD_190529.csv"),
-                    stringsAsFactors = FALSE,
-                    na.strings = c(""," ","  ", "NA", "N/A"),
-                    strip.white = TRUE)
+demo_patch <- read_csv(file.path(data_dir, "patch", "patch_DOD_190529.csv"))
+
+demo_patch_2 <- read_csv(file.path(data_dir, "patch", "patch_DOD_manual_review_190530.csv"))
+
+demo_patch_3 <- read_csv(file.path(data_dir, "patch", "patch_DOD_manual_review_190605.csv"))
 ```
 
 
@@ -271,36 +282,101 @@ demo.df <- demo.df %>%
         transmute(MRN = Duke.MRN, 
                Gender = as.factor(Patient.Gender), 
                Race = as.factor(Patient.Race), 
-               DOB = as.POSIXct(Patient.Date.of.Birth, 
-                                format = "%m/%d/%Y %H:%M:%S", 
-                                tz = "America/New_York"),
+               DOB = as_POSIXct(Patient.Date.of.Birth),
                Age.at.ECG = as.integer(0), # for future use
-               Death.index = as.factor(Patient.Death.Indicator),
-               DOD = as.POSIXct(Patient.Death.Date, 
-                                format = "%m/%d/%Y %H:%M:%S", 
-                                tz = "America/New_York"))
+               Death.index = Patient.Death.Indicator,
+               DOD = as_POSIXct(Patient.Death.Date),
+               Alive.date = if_else(Death.index == "ALIVE",
+                                    IRB_APPROVED_DATE,
+                                    as_POSIXct(NA)
+                                    )
+               )
+
+# Add original data extraction date if ALIVE status
+# don't have IRB approval to use later information.
 
 demo_patch <- demo_patch %>% 
     transmute(MRN = Duke.MRN,
-              Death.index = as.factor(Patient.Death.Indicator),
-              DOD = as.POSIXct(Patient.Death.Date,
-                               format = "%m/%d/%Y %H:%M:%S", 
-                                tz = "America/New_York"))
+              Death.index = Patient.Death.Indicator,
+              DOD = as_POSIXct(Patient.Death.Date),
+              Alive.date = if_else(Death.index == "ALIVE",
+                                    IRB_APPROVED_DATE,
+                                    as_POSIXct(NA)
+                                    )
+              )
+
+demo_patch_2 <- demo_patch_2 %>% 
+    transmute(MRN = Duke.MRN,
+              Death.index = Patient.Death.Indicator,
+              DOD = as_POSIXct(Patient.Death.Date),
+              Alive.date = as_POSIXct(Alive.date),
+              Alive.date = if_else(Alive.date > IRB_APPROVED_DATE,
+                                   IRB_APPROVED_DATE,
+                                   Alive.date)
+              )
+
+demo_patch_3 <- demo_patch_3 %>% 
+    transmute(MRN = Duke.MRN,
+              Death.index = Patient.Death.Indicator,
+              DOD = as_POSIXct(Patient.Death.Date),
+              Alive.date = as_POSIXct(Alive.date),
+              Alive.date = if_else(Alive.date > IRB_APPROVED_DATE,
+                                   IRB_APPROVED_DATE,
+                                   Alive.date)
+              )
 ```
 
+The patch will be performed accordingly:
+`patch_DOD_manual_review_190605.csv` used to update 
+`patch_DOD_manual_review_190530.csv` -> result will be used to update
+`patch_DOD_190529.csv` -> result will be used to update original data.
+
 ```{r}
+# select data not in latest patch and then add latest patch.
+demo_manual_patch <- anti_join(demo_patch_2, demo_patch_3, by = "MRN") %>% 
+    bind_rows(demo_patch_3)
+
+# select data not in above patch and then add.
+demo_patch <- anti_join(demo_patch, demo_manual_patch, by = "MRN") %>% 
+    bind_rows(demo_manual_patch)
+
+# select all rows that have patched data
 demo_in_patch <- semi_join(demo.df, demo_patch, by = "MRN")
+
+# replace old columns with patched data
 demo_in_patch <- left_join(
     select(demo_in_patch, -Death.index, -DOD),
     demo_patch,
     by = "MRN"
 )
+
+# update rows missing alive date
+
+demo_in_patch <- demo_in_patch %>% 
+    mutate(Alive.date = if_else(is.na(Alive.date.x),
+                                Alive.date.y,
+                                Alive.date.x)) %>% 
+    mutate(Death.index = if_else(!is.na(Alive.date),
+                                 "ALIVE",
+                                 Death.index)) %>% 
+    select(-Alive.date.x, -Alive.date.y)
+
+# IRB approval doesn't include use of information after orginal
+# extraction date, if DOD later -> change to ALIVE and add alive date
+dod_after_IRB <- which(demo_in_patch$DOD > IRB_APPROVED_DATE)
+
+demo_in_patch[dod_after_IRB, c("Death.index", "DOD", "Alive.date")] <- 
+    list("ALIVE", as_POSIXct(NA), IRB_APPROVED_DATE)
+
+# select data not in patch and then add patched rows
 demo.df <- bind_rows(
     anti_join(demo.df, demo_in_patch, by = "MRN"),
     demo_in_patch
 )
-```
 
+demo.df <- demo.df %>% 
+    mutate(Death.index = as.factor(Death.index))
+```
 
 Let's clean up the Race factor levels a bit.
 
@@ -372,29 +448,21 @@ read_diagnosis_data <- function(file_name, abb_dx, type_data = c("diagnosis", "p
     .dx_code <- paste0(quo_name(.abb_dx), ".Code")
     .dx_date <- paste0(quo_name(.abb_dx), ".Date")
     
-    .raw_data <- read.csv(
-        .file_path,
-        stringsAsFactors = FALSE,
-        na.strings = c(""," ","  ", "NA", "N/A")
-        )
+    .raw_data <- read_csv(.file_path)
     
     if (type_data[1] == "diagnosis") {
     .formatted_data <- .raw_data %>% 
         rename(MRN         = Duke.MRN,
                !!.dx_code := ICD.Diagnosis.Code,
                !!.dx_date := Diagnosis.Date) %>% 
-        mutate(!!.dx_date := as.POSIXct(.data[[!!.dx_date]],
-                                     format = "%m/%d/%Y %H:%M:%S",
-                                     tz     = "America/New_York")
+        mutate(!!.dx_date := as_POSIXct(.data[[!!.dx_date]])
                )
     } else if (type_data[1] == "procedure") {
             .formatted_data <- .raw_data %>% 
         rename(MRN         = Duke.MRN,
                !!.dx_code := ICD.Procedure.Code,
                !!.dx_date := Procedure.Date) %>% 
-        mutate(!!.dx_date := as.POSIXct(.data[[!!.dx_date]],
-                                     format = "%m/%d/%Y %H:%M:%S",
-                                     tz     = "America/New_York"),
+        mutate(!!.dx_date := as_POSIXct(.data[[!!.dx_date]]),
                !!quo_name(.abb_dx) := as.factor(1)) %>%
                 group_by(MRN) %>%
                 filter(!!.dx_date == min(!!.dx_date)) %>%
@@ -407,17 +475,12 @@ read_diagnosis_data <- function(file_name, abb_dx, type_data = c("diagnosis", "p
 ### Procedure data
 
 ```{r}
-crt.df <- read.csv(get_path("CRT Codes.csv", "Dx"), 
-                   stringsAsFactors = FALSE,
-                   na.strings = c(""," ","  ", "NA", "N/A")
-                   )
+crt.df <- read_csv(get_path("CRT Codes.csv", "Dx"))
 
 crt.df <- crt.df %>%
         rename(MRN = Duke.MRN, 
                CRT.Date = ICD.CPT.Procedure.Date) %>%
-        mutate(CRT.Date = as.POSIXct(CRT.Date, 
-                                    format = "%m/%d/%Y %H:%M:%S", 
-                                    tz = "America/New_York"),
+        mutate(CRT.Date = as_POSIXct(CRT.Date),
                CRT = as.factor(1)
                ) %>%
         group_by(MRN) %>%
@@ -549,9 +612,7 @@ read_rx_data <- function(file_name, abb_rx, patient = c("in", "out")){
     .path <- get_path(file_name = file_name,
                       sub_folder = "Medications")
     
-    .rx_data <- read.csv(.path,
-                         stringsAsFactors = FALSE,
-                         na.strings = c(""," ","  ", "NA", "N/A"))
+    .rx_data <- read_csv(.path)
     
     if (patient[1] == "in") {
         .rx_name <- paste0(quo_name(.rx), ".Rx.Name")
@@ -563,12 +624,8 @@ read_rx_data <- function(file_name, abb_rx, patient = c("in", "out")){
                    !!.rx_name := Medication.Name,
                    !!.rx_start_date := Start.Date,
                    !!.rx_end_date   := End.Date) %>% 
-            mutate(!!.rx_start_date := as.POSIXct(.data[[!!.rx_start_date]],
-                                                  format = "%m/%d/%Y %H:%M:%S", 
-                                                  tz = "America/New_York"),
-                   !!.rx_end_date   := as.POSIXct(.data[[!!.rx_end_date]],
-                                                  format = "%m/%d/%Y %H:%M:%S", 
-                                                  tz = "America/New_York")
+            mutate(!!.rx_start_date := as_POSIXct(.data[[!!.rx_start_date]]),
+                   !!.rx_end_date   := as_POSIXct(.data[[!!.rx_end_date]])
             )
     } else if (patient[1] == "out") {
         .rx_name <- paste0(quo_name(.rx), ".Rx.OMR.Name")
@@ -579,9 +636,7 @@ read_rx_data <- function(file_name, abb_rx, patient = c("in", "out")){
             rename(MRN = Duke.MRN,
                    !!.rx_name := OMR.Medication.Name,
                    !!.rx_date := OMR.Report.Date) %>% 
-            mutate(!!.rx_date := as.POSIXct(.data[[!!.rx_date]],
-                                            format = "%m/%d/%Y %H:%M:%S", 
-                                                  tz = "America/New_York")
+            mutate(!!.rx_date := as_POSIXct(.data[[!!.rx_date]])
             )
     }
 }
@@ -781,11 +836,7 @@ read_lab_data <- function(file_name, lab) {
         rename(MRN = Duke.MRN,
                !!.lab_date := Specimen.Collection.Date,
                !!.lab_value := Text.Result) %>% 
-        mutate(!!.lab_date := as.POSIXct(.data[[!!.lab_date]],
-                                         tryFormats = c(
-                                             "%m/%d/%Y %H:%M:%S",
-                                             "%m/%d/%Y %H:%M"),
-                                         tz = "America/New_York")
+        mutate(!!.lab_date := as_POSIXct(.data[[!!.lab_date]])
         ) %>% 
         # lab values contains strings like > < for greater, lower than, also , as thousand marker
         # remove for coercion to numeric.
@@ -1043,10 +1094,18 @@ main.df6 <- main.df5 %>%
         ungroup()
 ```
 
+
 ```{r}
 promiseData <- droplevels(main.df6)
 ```
 
+And finally, remove patients either missing Death.index n= `r nrow(filter(promiseData, is.na(Death.index)))`
+or status DECEASED but missing DOD n = `r nrow(filter(promiseData, Death.index == "DECEASED" & is.na(DOD)))`
 
+```{r}
+promiseData <- promiseData %>% 
+    filter( !is.na(Death.index) ) %>% 
+    filter( !(Death.index == "DECEASED" & is.na(DOD)) )
+```
 
 

@@ -16,9 +16,9 @@ Description: ECG, Echocardiographic and demographic for 93,000 Duke University M
 License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
-DataVersion: 0.1.5
+DataVersion: 0.1.6
 Roxygen: list(markdown = TRUE)
-Date: 2019-05-29
+Date: 2019-06-11
 Suggests:
     knitr,
     rmarkdown

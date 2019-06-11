@@ -150,6 +150,7 @@ NULL
 #' \item{\code{Age.at.ECG}}{numeric Age at time of ECG exam, years}
 #' \item{\code{Death.index}}{a factor with levels \code{ALIVE} \code{DECEASED}}
 #' \item{\code{DOD}}{POSIXct Date Of Death, YYYY-MM-DD HH:MM:SS}
+#' \item{\code{Alive.date}}{POSIXct Date of latest record of ALIVE status, YYYY-MM-DD HH:MM:SS}
 #' \item{\code{AF.Code}}{numeric ICD-code}
 #' \item{\code{AF.Date}}{POSIXct Date of diagnosis, YYYY-MM-DD HH:MM:SS}
 #' \item{\code{AF}}{numeric Atrial Fibrillation/Flutter}

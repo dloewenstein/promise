@@ -1,3 +1,8 @@
+DataVersion: 0.1.6
+=======================
+* Changed: ecg
+Package built in non-interactive mode
+
 # promise 0.1.4
 
 DataVersion: 0.1.5
