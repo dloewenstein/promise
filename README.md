@@ -79,7 +79,7 @@ library(promise)
 set_data_path() #Will be promted with browser Window
 
 #Setting filepath directly
-set_data_path("C:/Users/yourUserName/Box/promise/promise_v0.1.5.rda", .interactive = FALSE) # Only need to run once
+set_data_path("C:/Users/yourUserName/Box/promise/promiseData_v0.1.6.rda", .interactive = FALSE) # Only need to run once
 
 #For updating
 set_data_path(.update = TRUE)

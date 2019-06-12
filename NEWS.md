@@ -1,12 +1,20 @@
-DataVersion: 0.1.6
-=======================
-* Changed: ecg
-Package built in non-interactive mode
+#promise: 0.1.6
+
+## DataVersion: 0.1.6
+
+NEW:
+
+- Added Alive.date column indicating date of last follow up. Use for censoring.
+
+Bugs:
+
+- 154 patients had DECEASED status but no Date of death -> excluded
+- 1 patient had missing Death.index and no Alive.date or Date of death -> excluded
+
 
 # promise 0.1.4
 
-DataVersion: 0.1.5
-=======================
+## DataVersion: 0.1.5
 
 - Added new ECG variables:
     - VentricularRate, AtrialRate, QTInterval, PAxis, TAxis, QRSCount,
