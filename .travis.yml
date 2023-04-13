@@ -24,7 +24,7 @@ before_install:
     - curl https://rclone.org/install.sh | sudo bash
     - source rclone.conf
     - mkdir $HOME/box
-    - "rclone mount box: $HOME/box --daemon"
+    - "rclone mount -vv box: $HOME/box --daemon"
 
 before_script:
     - sh $TRAVIS_BUILD_DIR/copy-data.sh
