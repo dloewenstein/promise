@@ -1,4 +1,4 @@
-^\.\inst\extdata$
+inst\extdata$
 ^README\.Rmd$
 ^README-.*\.png$
 ^.*\.Rproj$
