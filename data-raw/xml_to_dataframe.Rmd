@@ -1,9 +1,13 @@
-#'---
-#'title: Reading xml ECG and processing diagnosis
-#'author: Daniel Loewenstein
-#'date: '`r Sys.Date()`'
-#'show_toc: yes
-#'---
+---
+title: Reading xml ECG and processing diagnosis
+author: Daniel Loewenstein
+date: '`r Sys.Date()`'
+show_toc: yes
+vignette: >
+  %\VignetteIndexEntry{Default Vignette Title. Add yaml title: to your document}
+  %\VignetteEngine{knitr::rmarkdown}
+  \usepackage[utf8]{inputenc}
+---
 
 <!-- # ```{r setup, purl=FALSE} -->
 <!-- # knitr::opts_chunk$set(eval = FALSE, tidy = FALSE) -->
@@ -190,9 +194,9 @@ ecg <- rbindlist(ecg, fill = TRUE)
 # | is used to alternate expressions, .* means zero_or_more of any character
 # before
 
-lbbb_pattern <- "(.*lbbb|.*left.?.?bundle|(.*bbb|bundle branch block).{1,8}?left)"
+lbbb_pattern <- "(.*lbbb|.*left.?.?bundle|(.*bbb|bundle branch block)[a-z|\ ]{1,8}?left)"
 
-rbbb_pattern <- "(.*rbbb|.*right.?.?bundle|(.*bbb|bundle branch block).{1,8}?right)"
+rbbb_pattern <- "(.*rbbb|.*right.?.?bundle|(.*bbb|bundle branch block)[a-z|\ ]{1,8}?right)"
 
 ivcd_pattern <- "(.*ivcd|.*int(ra|er).?vent.{1,10}?cond.{1,10}?delay)"
 
